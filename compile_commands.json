@@ -1,0 +1,7 @@
+[
+  {
+    "file": "src/main.cpp",
+    "command": "clang++ -Ilib/raylib/src -Iinclude -Llib/raylib/src -Llib/ src/main.cpp -o bin/chessy",
+    "directory": "/home/yyarch/projects/chessy"
+  }
+]

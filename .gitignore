@@ -1,0 +1,13 @@
+# Build artifacts
+build/
+bin/
+obj/
+*.o
+*.out
+*.exe
+
+# System/IDE leftovers
+.vscode/
+.idea/
+.DS_Store
+*.swp
