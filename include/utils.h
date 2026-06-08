@@ -27,6 +27,10 @@ struct ChessMouseInteraction {
   Vector2 currentMousePos = {0.0f, 0.0f}; // live coordinates
 };
 
+// Near the top of utils.h, right under the include/structs statements:
+inline int enPassantTargetRow = -1;
+inline int enPassantTargetCol = -1;
+
 namespace ChessMode {
 // Forward declare this
 enum CHESSY_UTIL_MENU_MODE : int;
@@ -150,7 +154,7 @@ inline void DrawGameUI(const Colorscheme &palette, Font uiFont,
   DrawRectangleLines(panelX, boardOffsetY, panelWidth, boardSize * squareSize,
                      palette["accent"]);
 
-  DrawTextEx(uiFont, "CHESSY v0.1",
+  DrawTextEx(uiFont, "CHESSY v1.0.3", // prev, `"CHESSY v0.1"`
              {(float)panelX + 15, (float)boardOffsetY + 20}, 20.0f, 1.0f,
              palette["accent"]);
 
@@ -290,6 +294,23 @@ inline void ExecuteMoveOrCastle(int fRow, int fCol, int tRow, int tCol,
         rights.blackLeftRookMoved = true;
     }
   }
+
+  // --- EN PASSANT STATE UPDATE ---
+  // Default: clear the target for the next turn so the opportunity expires
+  int oldTargetRow = enPassantTargetRow;
+  enPassantTargetRow = -1;
+  enPassantTargetCol = -1;
+
+  // If a pawn just double-stepped, set the new ghost target square
+  if (movingPiece == PAWN) {
+    if (fRow == 6 && tRow == 4) { // White pawn double-step
+      enPassantTargetRow = 5;     // The square it skipped over
+      enPassantTargetCol = fCol;
+    } else if (fRow == 1 && tRow == 3) { // Black pawn double-step
+      enPassantTargetRow = 2;            // The square it skipped over
+      enPassantTargetCol = fCol;
+    }
+  }
 }
 
 inline void ProcessDualInput(ChessBoardMatrix &board, PieceColor &currentTurn,
@@ -298,7 +319,8 @@ inline void ProcessDualInput(ChessBoardMatrix &board, PieceColor &currentTurn,
                              std::vector<PieceType> &bCaptured,
                              ChessLogic::CastlingRights &rights,
                              Sound soundCapture, Sound soundCastle,
-                             Sound soundCheck, Sound soundMove) {
+                             Sound soundCheck, Sound soundMove,
+                             int &epTargetRow, int &epTargetCol) {
   Vector2 mouse = GetMousePosition();
   state.currentMousePos = mouse;
   int col = (mouse.x - boardOffsetX) / squareSize;
@@ -327,12 +349,32 @@ inline void ProcessDualInput(ChessBoardMatrix &board, PieceColor &currentTurn,
         if (ChessLogic::IsMoveAbsolutelyLegal(state.selectedRow,
                                               state.selectedCol, row, col,
                                               currentTurn, board, rights)) {
-          if (board[row][col].type != EMPTY) {
-            if (board[row][col].color == WHITE_PIECE)
-              wCaptured.push_back(board[row][col].type);
-            else
-              bCaptured.push_back(board[row][col].type);
-            PlaySound(soundCapture);
+          bool isEnPassant =
+              (board[state.selectedRow][state.selectedCol].type == PAWN) &&
+              (col == epTargetCol) && (row == epTargetRow);
+
+          if (board[row][col].type != EMPTY || isEnPassant) {
+            if (isEnPassant) {
+              // 1. Identify where the enemy pawn is actually sitting
+              int victimRow = (currentTurn == WHITE_PIECE) ? row + 1 : row - 1;
+
+              // 2. Add the captured enemy pawn to the CORRECT player's sidebar
+              // list
+              if (currentTurn == WHITE_PIECE) {
+                bCaptured.push_back(PAWN); // White captures Black's pawn
+              } else {
+                wCaptured.push_back(PAWN); // Black captures White's pawn
+              }
+
+              // 3. Vaporize the enemy pawn from its physical square
+              board[victimRow][col] = {EMPTY, NONE_COLOR};
+            } else {
+              if (board[row][col].color == WHITE_PIECE)
+                wCaptured.push_back(board[row][col].type);
+              else
+                bCaptured.push_back(board[row][col].type);
+            }
+            PlaySound(soundCapture); // both are classified as captures.
           } else {
             PlaySound(soundMove);
           }
@@ -363,11 +405,31 @@ inline void ProcessDualInput(ChessBoardMatrix &board, PieceColor &currentTurn,
         if (ChessLogic::IsMoveAbsolutelyLegal(state.selectedRow,
                                               state.selectedCol, row, col,
                                               currentTurn, board, rights)) {
-          if (board[row][col].type != EMPTY) {
-            if (board[row][col].color == WHITE_PIECE)
-              wCaptured.push_back(board[row][col].type);
-            else
-              bCaptured.push_back(board[row][col].type);
+          bool isEnPassant =
+              (board[state.selectedRow][state.selectedCol].type == PAWN) &&
+              (col == epTargetCol) && (row == epTargetRow);
+
+          if (board[row][col].type != EMPTY || isEnPassant) {
+            if (isEnPassant) {
+              // 1. Identify where the enemy pawn is actually sitting
+              int victimRow = (currentTurn == WHITE_PIECE) ? row + 1 : row - 1;
+
+              // 2. Add the captured enemy pawn to the CORRECT player's sidebar
+              // list
+              if (currentTurn == WHITE_PIECE) {
+                bCaptured.push_back(PAWN); // White captures Black's pawn
+              } else {
+                wCaptured.push_back(PAWN); // Black captures White's pawn
+              }
+
+              // 3. Vaporize the enemy pawn from its physical square
+              board[victimRow][col] = {EMPTY, NONE_COLOR};
+            } else {
+              if (board[row][col].color == WHITE_PIECE)
+                wCaptured.push_back(board[row][col].type);
+              else
+                bCaptured.push_back(board[row][col].type);
+            }
             PlaySound(soundCapture);
           } else {
             PlaySound(soundMove);

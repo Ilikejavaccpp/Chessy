@@ -11,12 +11,15 @@ A TODO list for this chessy project.
 * Sound overwrite bug of check & move (move overrides it) [DONE]
 * Fix corr. sound: `castling.mp3` [DONE]
 * Some minor ui alignments [DONE]
-* Some ui implementations.
+* Some ui implementations. [DONE] [NOTE `completed checkmate logic and menu swapping also`]
+* More minor ui implementations -- like adding a home button to the sidebar panel (play mode). [TODO `tomm.`]
+* Enable en passant and pawn promotion with slick ui; **IMPORTANT**  [TODO `tomm.`]
 
 ## Implementation (Future)
 
 * The Menu (refer to `doc/README.md`) [TODO `tomm.`] [DONE]
-* Sound, Images, Usernames [2/3] [TODO `tomm.` => MAYBE]
+* More minor ui implementations -- like adding a home button to the sidebar panel (play mode). [TODO `tomm.`]
+* Sound, Images, Usernames [2/3] [TODO `tomm.` => MAYBE] [TODO SOMEDAY]
 * Accounts 
 * Imports
 * DEPLOYMENT -> ready

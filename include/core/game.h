@@ -68,8 +68,23 @@ private:
 
   // Modern Screen Mode Manager: 0 = Start Menu, 1 = Self Practice Mode
   int currentScreenMode = 0;
+  ChessUI::CHESSY_UI_MENU_MODE currentMenuMode =
+      ChessUI::CHESSY_MODE_HOME; // assigned to the home page of a ui menu
+                                 // layout. OTHER pages are `about`, `help`,
+                                 // etc.
 
   bool hasChecked = false;
+
+  // -1 means no active en passant is possible on this turn
+  // Gonna soon refactor this into an enum for y'all to use. ;)
+  // int enPassantTargetCol = -1;
+  // int enPassantTargetRow = -1;
+  // NEVERMIND, utils.h had these and i am too lazy for an update, i.e.
+  // enPassantTargetCol = ...
+
+  bool isPromoting = false;
+  int promotionRow = -1; // not selected
+  int promotionCol = -1; // not selected
 
   /**********************************************************
    * Helper functions that are necessary.
@@ -135,10 +150,10 @@ private:
     } else if (currentScreenMode == ChessMode::CHESSY_MODE_PLAYCF) {
       // FIXED: Swapped sound arguments order to perfectly match utils.h
       // template definition
-      ChessInput::ProcessDualInput(boardState, currentTurn, mouseInteraction,
-                                   whiteCaptured, blackCaptured,
-                                   castling_rights, soundCapture, soundCastle,
-                                   soundCheck, soundMove);
+      ChessInput::ProcessDualInput(
+          boardState, currentTurn, mouseInteraction, whiteCaptured,
+          blackCaptured, castling_rights, soundCapture, soundCastle, soundCheck,
+          soundMove, enPassantTargetRow, enPassantTargetCol);
     }
   }
 
@@ -169,7 +184,9 @@ private:
 
       // Draw a deep red warning block under the King if checked
       ChessUI::DrawBoardUIKingChecked(currentTurn, boardState, castling_rights,
-                                      palette, soundCheck, hasChecked);
+                                      palette, soundCheck, hasChecked,
+                                      currentScreenMode, currentMenuMode,
+                                      whiteCaptured, blackCaptured);
 
       // Paint piece textures with hybrid mouse tracking
       ChessVisuals::DrawPiecesWithHybridControls(

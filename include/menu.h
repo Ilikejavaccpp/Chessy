@@ -7,6 +7,7 @@
 
 #include "core/colorscheme.h"
 #include "core/logic.h"
+#include "pieces/pieces.h"
 #include "utils.h"
 
 // The turn of a player, returns black (color) or (white)
@@ -49,11 +50,24 @@ inline void DrawSelectedPieceUIDots(ChessMouseInteraction mouseInteraction,
 
 // draws a red Square or `check_square` key from palette when the king is
 // checked with sound (TODO)
-inline void DrawBoardUIKingChecked(TurnColor currentTurn,
-                                   ChessBoardMatrix &boardState,
-                                   ChessLogic::CastlingRights &rights,
-                                   Colorscheme &palette, Sound soundCheck,
-                                   bool &hasPlayedSound) {
+inline void DrawBoardUIKingChecked(
+    TurnColor &currentTurn, ChessBoardMatrix &boardState,
+    ChessLogic::CastlingRights &rights, Colorscheme &palette, Sound soundCheck,
+    bool &hasPlayedSound,
+    int &currentScreenMode, // you can't pass `ChessMenu::CHESSY_UTIL_MENU_MODE`
+                            // here since that will result in a compiler panic
+                            // about non-const lvalue param reference. Since
+                            // anyways the enum members convert to `int`, pass
+                            // it like so
+    ChessUI::CHESSY_UI_MENU_MODE &currentMenuMode,
+
+    // These 2 params are for capturing cleanup. may make this into a dedicated
+    // vector or array of captures, with a nice looping to sort things out. ->
+    // TODO
+
+    std::vector<PieceType> &whiteCaptured,
+    std::vector<PieceType> &blackCaptured) {
+
   // Draw a deep red warning block under the King if checked
   if (ChessLogic::IsKingInCheck(currentTurn, boardState, rights)) {
     int kRow = -1, kCol = -1;
@@ -70,7 +84,23 @@ inline void DrawBoardUIKingChecked(TurnColor currentTurn,
       if (ChessLogic::GetLegalMovesForPiece(kRow, kCol, currentTurn, boardState,
                                             rights)
               .empty()) {
-        std::cout << "[INFO] : Checkmate, returning to HOME.";
+
+        // Return to the home page
+        if (hasPlayedSound == true) { // since this will be reset, hence once.
+          std::cout << "[INFO] : LOGIC -- Checkmate, returning to HOME. -> "
+                       "REDIRECT\n";
+        }
+        currentScreenMode = ChessMode::CHESSY_MODE_NORMAL;
+        currentMenuMode = CHESSY_MODE_HOME;
+
+        // Cleanup
+        hasPlayedSound = false;
+        whiteCaptured.clear();
+        blackCaptured.clear();
+
+        // Start a fresh new game
+        initStartingPosition(boardState); // clear left over remnants
+        currentTurn = WHITE_PIECE;
 
         // PlaySound(soundCheckmate);
       }

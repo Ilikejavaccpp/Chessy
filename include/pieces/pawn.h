@@ -6,6 +6,10 @@
 #ifndef CHESSY_PIECE_PAWN_H
 #define CHESSY_PIECE_PAWN_H
 
+// Forward declare these. Provided and assigned by utils.h
+extern int enPassantTargetRow;
+extern int enPassantTargetCol;
+
 namespace ChessLogic {
 inline bool IsPawnMoveLegal(int fRow, int fCol, int tRow, int tCol,
                             PieceColor color, const ChessBoardMatrix &board) {
@@ -32,6 +36,14 @@ inline bool IsPawnMoveLegal(int fRow, int fCol, int tRow, int tCol,
 
   // Case C: Standard Diagonal Capture
   if (colDist == 1 && rowDist == direction && board[tRow][tCol].type != EMPTY) {
+    return true;
+  }
+
+  // Case D: En Passant Diagonal Capture
+  // Checks if the destination square matches the active "ghost target"
+  // coordinates
+  if (colDist == 1 && rowDist == direction && tRow == enPassantTargetRow &&
+      tCol == enPassantTargetCol) {
     return true;
   }
 

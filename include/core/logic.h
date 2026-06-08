@@ -3,7 +3,8 @@
 #include <cstring>
 // #include <iostream>
 #include <vector>
-
+// IMPLEMENT EN-PASSANT LOGIC HERE,
+// PROMOTION MAYBE TOMORROW.
 #include "core/dimensions.h" // <- magic numbers HERE
 #include "pieces/bishop.h"
 #include "pieces/king.h"
