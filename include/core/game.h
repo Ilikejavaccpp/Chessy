@@ -1,3 +1,7 @@
+// file for the chess application, and mainloop.
+// You can tinker with this. pls just like add the functions to `utlis.h`
+// but for the sake of everyone and the devs: DON'T DELETE core functions
+
 #pragma once
 
 #include <cstdint>
@@ -65,6 +69,8 @@ private:
   // Modern Screen Mode Manager: 0 = Start Menu, 1 = Self Practice Mode
   int currentScreenMode = 0;
 
+  bool hasChecked = false;
+
   /**********************************************************
    * Helper functions that are necessary.
    **********************************************************/
@@ -83,7 +89,8 @@ private:
 
       // Recalculate your global layout constraints live across frame
       // transitions
-      squareSize = (this->height - 140) / 8;
+      // NOTE: MAGIC NUMBER was 140
+      squareSize = (this->height - 160) / 8;
       if (squareSize < 20)
         squareSize = 20; // Lower floor boundary logic defense
       boardOffsetY = 90;
@@ -143,6 +150,10 @@ private:
       ChessMenu::DrawStartMenu(palette, font, this->width, this->height,
                                this->sdfShader);
     } else if (currentScreenMode == ChessMode::CHESSY_MODE_PLAYCF) {
+      if (IsKeyPressed(KEY_SPACE)) {
+        std::cout << "[DEBUG] : Playing sound check.\n";
+        PlaySound(soundCheck);
+      }
       ClearBackground(palette["background_dark"]);
 
       // Draw the chessboard
@@ -158,7 +169,7 @@ private:
 
       // Draw a deep red warning block under the King if checked
       ChessUI::DrawBoardUIKingChecked(currentTurn, boardState, castling_rights,
-                                      palette, soundCheck);
+                                      palette, soundCheck, hasChecked);
 
       // Paint piece textures with hybrid mouse tracking
       ChessVisuals::DrawPiecesWithHybridControls(
@@ -253,6 +264,10 @@ public:
     InitAudioDevice();
 
     SetTargetFPS(60);
+    SetWindowMinSize(min_width,
+                     min_height); // sets it so that you can't resize it down
+                                  // further. FROM the wiki. Now onwards from
+                                  // v1.0.3+ you will see better comments.
 
     BeginDrawing();
     ClearBackground(palette["background_dark"]);

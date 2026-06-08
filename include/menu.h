@@ -1,8 +1,12 @@
 #pragma once
 
+// COLORSCHEME
+// #define CHESSY_COLROSCHEME_ARC_SOFT
+
 #include <raylib.h>
 
 #include "core/colorscheme.h"
+#include "core/logic.h"
 #include "utils.h"
 
 // The turn of a player, returns black (color) or (white)
@@ -48,7 +52,8 @@ inline void DrawSelectedPieceUIDots(ChessMouseInteraction mouseInteraction,
 inline void DrawBoardUIKingChecked(TurnColor currentTurn,
                                    ChessBoardMatrix &boardState,
                                    ChessLogic::CastlingRights &rights,
-                                   Colorscheme &palette, Sound soundCheck) {
+                                   Colorscheme &palette, Sound soundCheck,
+                                   bool &hasPlayedSound) {
   // Draw a deep red warning block under the King if checked
   if (ChessLogic::IsKingInCheck(currentTurn, boardState, rights)) {
     int kRow = -1, kCol = -1;
@@ -56,7 +61,23 @@ inline void DrawBoardUIKingChecked(TurnColor currentTurn,
       DrawRectangle(boardOffsetX + (kCol * squareSize),
                     boardOffsetY + (kRow * squareSize), squareSize, squareSize,
                     palette["check_square"]);
+
+      if (hasPlayedSound == false) {
+        PlaySound(soundCheck);
+        hasPlayedSound = true;
+      }
+
+      if (ChessLogic::GetLegalMovesForPiece(kRow, kCol, currentTurn, boardState,
+                                            rights)
+              .empty()) {
+        std::cout << "[INFO] : Checkmate, returning to HOME.";
+
+        // PlaySound(soundCheckmate);
+      }
     }
+
+  } else {
+    hasPlayedSound = false;
   }
 }
 } // namespace ChessUI
@@ -211,15 +232,19 @@ inline void DrawStartMenu(Colorscheme &palette, Font &font, int width,
   DrawRectangle(panelX, 90, panelW, boardSize,
                 palette["background_dark_menu_header"]);
 
+  // Custom button drawer
+  // Lambda function so that we don't have a gazillion functions.
+  // There are too many functions in this project
   auto DrawMenuButton = [&](Rectangle rec, const char *label) {
     bool hover = CheckCollisionPointRec(mouse, rec);
-    DrawRectangleRec(rec, hover ? palette["background_dark_menu_header"]
+    DrawRectangleRec(rec, hover ? palette["hover_button"]
                                 : palette["background_dark_menu_body"]);
     DrawRectangleLinesEx(rec, 1,
-                         hover ? palette["accent"]
+                         hover ? palette["hover_button_outline"]
                                : palette["background_dark_menu_header"]);
-    DrawTextEx(font, label, {rec.x + 20, rec.y + (rec.height / 2.0f) - 10}, 20,
-               1.2f, hover ? palette["accent"] : palette["foreground_dark"]);
+    DrawTextEx(
+        font, label, {rec.x + 20, rec.y + (rec.height / 2.0f) - 10}, 20, 1.2f,
+        hover ? palette["hover_button_text"] : palette["foreground_dark"]);
   };
 
   DrawMenuButton(ui.btnPlayOnline, "Play Online / Friend");

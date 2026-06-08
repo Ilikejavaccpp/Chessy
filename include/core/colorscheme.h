@@ -39,8 +39,31 @@
 // Background for the menu body
 #define CHESSY_COLOR_DARK_BACKGROUND_MENU_BODY ColorAlpha(BLACK, 0.3f)
 
+// Background for the buttons when hovered
+// OFFICIAL CHESSY dark arc (cyan) theme
+#ifdef CHESSY_COLORSCHEME_ARC_BLUE
+#define CHESSY_COLOR_DARK_HOVER_BUTTON CHESSY_COLOR_TINT_HOVER
+#define CHESSY_COLOR_DARK_HOVER_BUTTON_TEXT ColorAlpha(WHITE, 0.9f)
+#define CHESSY_COLOR_DARK_HOVER_BUTTON_OUTLINE Color{180, 180, 180, 120}
+
+// OFFICIAL CHESSY dark arc (mono gray) theme
+#elif defined(CHESSY_COLORSCHEME_ARC_SOFT)
+#define CHESSY_COLOR_DARK_HOVER_BUTTON Color{255, 255, 255, 20}
+#define CHESSY_COLOR_DARK_HOVER_BUTTON_TEXT Color{240, 240, 240, 255}
+#define CHESSY_COLOR_DARK_HOVER_BUTTON_OUTLINE Color{255, 255, 255, 100}
+
+#else
+#define CHESSY_COLOR_DARK_HOVER_BUTTON Color{45, 45, 48, 255}
+#define CHESSY_COLOR_DARK_HOVER_BUTTON_TEXT ColorAlpha(WHITE, 0.9f)
+#define CHESSY_COLOR_DARK_HOVER_BUTTON_OUTLINE Color{180, 180, 180, 120}
+
+#endif
+
 // Foreground
 #define CHESSY_COLOR_DARK_FOREGROUND Color{230, 230, 167, 255}
+
+// Accent
+#define CHESSY_COLOR_DARK_OVERLAY_ACCENT Color{23, 147, 209, 130}
 
 inline std::map<std::string, Color> GetPinkFloydPalette() {
   return {
@@ -108,6 +131,12 @@ public:
 
     // Set the accent for border
     append_color("accent", Color{23, 147, 209, 130});
+
+    // Set the color for hovered buttons.
+    append_color("hover_button", CHESSY_COLOR_DARK_HOVER_BUTTON);
+    append_color("hover_button_outline",
+                 CHESSY_COLOR_DARK_HOVER_BUTTON_OUTLINE);
+    append_color("hover_button_text", CHESSY_COLOR_DARK_HOVER_BUTTON_TEXT);
   }
 
   // Adds a color to the back row.

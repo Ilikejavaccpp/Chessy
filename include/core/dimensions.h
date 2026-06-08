@@ -1,5 +1,7 @@
 #pragma once
 
+#include <raylib.h>
+
 // include these header guards for older build systems
 // or just for 'textbook' people. This is a preventive measure
 #ifndef CHESSY_DIMENSIONS_H
@@ -12,6 +14,9 @@
 inline const int width = 800;
 inline const int height = 500;
 
+inline const int min_width = 680;
+inline const int min_height = 460;
+
 // provide a title
 inline const char title[7] = "chessy";
 
@@ -23,7 +28,8 @@ inline int squareSize = 50;
 // inline const int boardOffsetX = (width - (boardSize * squareSize)) /
 //                                 3; // Shifted left to make sidebar space
 // Made them non consts so that we can work with them
-inline int boardOffsetX = 50; // MAGIC NUMBER >:D
+inline int boardOffsetX =
+    (width - (boardSize * squareSize)) / 2; // MAGIC NUMBER was 50 >:(
 inline int boardOffsetY = (height - (boardSize * squareSize)) / 2;
 
 // Interface Sidebar Elements Sizing Panels
