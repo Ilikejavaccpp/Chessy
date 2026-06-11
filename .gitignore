@@ -1,6 +1,6 @@
 # Build artifacts
 build/
-bin/
+# bin/
 obj/
 *.o
 *.out
@@ -8,6 +8,7 @@ obj/
 
 # System/IDE leftovers
 .vscode/
+.clangd/
 .idea/
 .DS_Store
 *.swp

@@ -27,9 +27,23 @@ struct ChessMouseInteraction {
   Vector2 currentMousePos = {0.0f, 0.0f}; // live coordinates
 };
 
+// For pawn promotion.
+struct PromotionState {
+  bool active = false; // is it ready to promote? // is it the promotion stage
+  int row =
+      -1; // row (rank, 8th or `row=0` for white; 1st or `row=7` for black)
+  int col = -1; // col (file)
+  PieceColor color =
+      NONE_COLOR; // the turn. THIS IS UNINITIALIZED SINCE WE DON'T KNOW WHO
+                  // PROMOTED THEIR PAWNS AT THE START OF THE GAME
+};
+
 // Near the top of utils.h, right under the include/structs statements:
 inline int enPassantTargetRow = -1;
 inline int enPassantTargetCol = -1;
+
+inline PromotionState activePromotion; // since they are defaulted.
+inline Colorscheme palette;
 
 namespace ChessMode {
 // Forward declare this
@@ -250,9 +264,110 @@ inline void DrawMovePossibilityDots(const Colorscheme &palette,
     }
   }
 }
+
+// Here `tRow` and `tCol` mean the current (this) row and col
+// of the pawn. The `color` param is for the current color (w/b) or the current
+// 'turn'
+inline void DrawPawnPromotionUI(int tRow, int tCol, PieceColor &color,
+                                const Texture2D whiteTextures[6],
+                                const Texture2D blackTextures[6],
+                                Vector2 &mousePos, Colorscheme &palette) {
+  // Nice dimmed board.
+  // Dim the board to a nice 60% light.
+  DrawRectangle(boardOffsetX, boardOffsetY, boardSize * squareSize,
+                boardSize * squareSize, ColorAlpha(BLACK, 0.4));
+
+  // --- MENU section ---
+  // The dimensions
+  float menuX = (float)boardOffsetX + (tCol * squareSize);
+  float menuWidth = (float)squareSize;
+  float menuHeight = (float)squareSize * 4.0f;
+
+  // Pivot placement layout depending on which side is promoting
+  // White promotes moving up (lands on Row 0 -> drops panel down rows 0,1,2,3)
+  // Black promotes moving down (lands on Row 7 -> sprouts panel up rows
+  // 7,6,5,4)
+  float menuY = (color == WHITE_PIECE)
+                    ? (float)boardOffsetY + (squareSize)
+                    : (float)boardOffsetY + ((tRow - 3) * squareSize);
+
+  // Draw the menu
+  DrawRectangleRec({menuX, menuY, menuWidth, menuHeight},
+                   palette["background_dark_promotion_menu_body"]);
+  DrawRectangleLinesEx({menuX, menuY, menuWidth, menuHeight}, 2.0f,
+                       palette["background_dark_menu_header"]);
+
+  // Draw the selection menu with textures (n, b, r, q)
+  PieceType promotionCandidates[4] = {KNIGHT, BISHOP, ROOK, QUEEN};
+
+  // ya know what. frick `int i` use memory shit
+  for (unsigned char i = 0; i < 4; ++i) {
+
+    // Item size and bounds
+    float itemY = menuY + (i * squareSize);
+    Rectangle itemBounds = {menuX, itemY, (float)squareSize, (float)squareSize};
+
+    // Check if the mouse is hovering over any of them.
+    if (CheckCollisionPointRec(mousePos, itemBounds)) {
+      DrawRectangleRec(itemBounds, palette["hover_button"]);
+      DrawRectangleLinesEx(itemBounds, 1.0f, palette["hover_button_outline"]);
+    }
+
+    // Map choice enum elements back into texture asset IDs (Enum Type Val - 1)
+    int idx = (int)promotionCandidates[int(i)] - 1;
+    Texture2D pieceTex =
+        (color == WHITE_PIECE) ? whiteTextures[idx] : blackTextures[idx];
+
+    // Safely draw the piece centered perfectly inside its menu tile box
+    if (pieceTex.id != 0) {
+      DrawTexturePro(
+          pieceTex, {0.0f, 0.0f, (float)pieceTex.width, (float)pieceTex.height},
+          itemBounds, {0.0f, 0.0f}, 0.0f, WHITE);
+    }
+  }
+}
 } // namespace ChessVisuals
 
 namespace ChessInput {
+inline void ProcessPromotionSelection(ChessBoardMatrix &board,
+                                      const Vector2 &mousePos,
+                                      Sound &soundMove) {
+  if (!activePromotion.active)
+    return;
+
+  if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    // Exact layout boundary logic mirrored from the rendering engine setup
+    float menuX = (float)boardOffsetX + (activePromotion.col * squareSize);
+    float menuWidth = (float)squareSize;
+    float menuY =
+        (activePromotion.color == WHITE_PIECE)
+            ? (float)boardOffsetY + (squareSize)
+            : (float)boardOffsetY + ((activePromotion.row - 3) * squareSize);
+
+    PieceType promotionCandidates[4] = {KNIGHT, BISHOP, ROOK, QUEEN};
+
+    for (unsigned char i = 0; i < 4; ++i) {
+      float itemY = menuY + (i * squareSize);
+      Rectangle itemBounds = {menuX, itemY, menuWidth, (float)squareSize};
+
+      if (CheckCollisionPointRec(mousePos, itemBounds)) {
+        // Mutate board matrix position to target choice selection piece
+        board[activePromotion.row][activePromotion.col] = {
+            promotionCandidates[i], activePromotion.color};
+
+        // Deactivate promotion cycle states
+        activePromotion.active = false;
+        activePromotion.row = -1;
+        activePromotion.col = -1;
+        activePromotion.color = NONE_COLOR;
+
+        PlaySound(soundMove);
+        break;
+      }
+    }
+  }
+}
+
 inline void ExecuteMoveOrCastle(int fRow, int fCol, int tRow, int tCol,
                                 ChessBoardMatrix &board,
                                 ChessLogic::CastlingRights &rights,
@@ -311,6 +426,17 @@ inline void ExecuteMoveOrCastle(int fRow, int fCol, int tRow, int tCol,
       enPassantTargetCol = fCol;
     }
   }
+
+  // --- PAWN PROMOTION UPDATE ---
+  if (movingPiece == PAWN) {
+    if ((movingColor == WHITE_PIECE && tRow == 0) ||
+        (movingColor == BLACK_PIECE && tRow == 7)) {
+      activePromotion.active = true;
+      activePromotion.row = tRow;
+      activePromotion.col = tCol;
+      activePromotion.color = movingColor;
+    }
+  }
 }
 
 inline void ProcessDualInput(ChessBoardMatrix &board, PieceColor &currentTurn,
@@ -318,14 +444,20 @@ inline void ProcessDualInput(ChessBoardMatrix &board, PieceColor &currentTurn,
                              std::vector<PieceType> &wCaptured,
                              std::vector<PieceType> &bCaptured,
                              ChessLogic::CastlingRights &rights,
-                             Sound soundCapture, Sound soundCastle,
-                             Sound soundCheck, Sound soundMove,
+                             Sound &soundCapture, Sound &soundCastle,
+                             Sound &soundCheck, Sound &soundMove,
                              int &epTargetRow, int &epTargetCol) {
   Vector2 mouse = GetMousePosition();
   state.currentMousePos = mouse;
   int col = (mouse.x - boardOffsetX) / squareSize;
   int row = (mouse.y - boardOffsetY) / squareSize;
   bool inside = (col >= 0 && col < boardSize && row >= 0 && row < boardSize);
+
+  if (activePromotion.active) {
+    // make an update for this.
+    ProcessPromotionSelection(board, mouse, soundMove);
+    return;
+  }
 
   if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && inside) {
     state.isDown = true;
@@ -501,7 +633,7 @@ inline int findOption(char **list, int listSize, std::string_view targetOption,
 namespace ChessMenu::logic {
 inline void
 UpdateMenuElement(int width, int height, Vector2 mouse,
-                  enum ChessMode::CHESSY_UTIL_MENU_MODE currentScreenMode) {
+                  enum ChessMode::CHESSY_UTIL_MENU_MODE &currentScreenMode) {
   // Mirror the layout metrics utilized inside the DrawStartMenu rendering
   // canvas
   int boardSize = height - 130;
@@ -522,6 +654,8 @@ UpdateMenuElement(int width, int height, Vector2 mouse,
     currentScreenMode =
         ChessMode::CHESSY_MODE_PLAYCF; // Slide application into gameplay loop
   }
+
+  // Add more elements below
 }
 } // namespace ChessMenu::logic
 

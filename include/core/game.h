@@ -197,6 +197,14 @@ private:
       ChessVisuals::DrawGameUI(palette, font, whiteCaptured, blackCaptured,
                                whiteTextures, blackTextures);
       // EndShaderMode();
+
+      // Draw the promotion UI
+      if (activePromotion.active) {
+        Vector2 mousePos = GetMousePosition();
+        ChessVisuals::DrawPawnPromotionUI(
+            activePromotion.row, activePromotion.col, activePromotion.color,
+            whiteTextures, blackTextures, mousePos, palette);
+      }
     }
 
     EndDrawing();

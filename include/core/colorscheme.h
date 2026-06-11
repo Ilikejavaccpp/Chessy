@@ -99,6 +99,8 @@ public:
     append_color("background_dark_menu_body",
                  CHESSY_COLOR_DARK_BACKGROUND_MENU_BODY);
 
+    append_color("background_dark_promotion_menu_body", Color{50, 47, 51, 210});
+
     // Set the foreground color of text
     append_color("foreground_dark", CHESSY_COLOR_DARK_FOREGROUND);
 

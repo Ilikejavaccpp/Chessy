@@ -13,7 +13,7 @@ A TODO list for this chessy project.
 * Some minor ui alignments [DONE]
 * Some ui implementations. [DONE] [NOTE `completed checkmate logic and menu swapping also`]
 * More minor ui implementations -- like adding a home button to the sidebar panel (play mode). [TODO `tomm.`]
-* Enable en passant and pawn promotion with slick ui; **IMPORTANT**  [TODO `tomm.`]
+* Enable en passant and pawn promotion with slick ui; **IMPORTANT**  [DONE] [NOTE `look at it, it is cool.`]
 
 ## Implementation (Future)
 
