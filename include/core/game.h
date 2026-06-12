@@ -127,27 +127,36 @@ private:
         Vector2 mouse =
             GetMousePosition(); // RESTORED: Fixed undefined variable error
 
-        // Mirror the layout metrics utilized inside the DrawStartMenu rendering
-        // canvas
-        int boardSize = this->height - 130;
-        int panelX = 20 + boardSize + 20;
-        int panelW = this->width - panelX - 20;
-        int buttonX = panelX + 20;
-        int buttonW = panelW - 40;
-        int buttonH = (boardSize - (15 * 5)) / 4;
+        // REDUNDANT!
+        // already defined in the below large function. :sob:
+        // ------------------------------------------------------------------------------------------------
+        // // Mirror the layout metrics utilized inside the DrawStartMenu
+        // rendering
+        // // canvas
+        // int boardSize = this->height - 130;
+        // int panelX = 20 + boardSize + 20;
+        // int panelW = this->width - panelX - 20;
+        // int buttonX = panelX + 20;
+        // int buttonW = panelW - 40;
+        // int buttonH = (boardSize - (15 * 5)) / 4;
+        //
+        // // Compute the explicit bounding frame for Button 4 (Self Practice
+        // Card) int b4Y = (90 + 15) + (buttonH + 15) * 3; Rectangle b4Bounds =
+        // {(float)buttonX, (float)b4Y, (float)buttonW,
+        //                       (float)buttonH};
+        //
+        // if (CheckCollisionPointRec(mouse, b4Bounds)) {
+        //   std::cout << "[ROUTE] : User triggered Menu Card 4 -> Transition to
+        //   "
+        //                "Self Practice Mode\n";
+        //   currentScreenMode = 1; // Slide application into gameplay loop
+        // }
 
-        // Compute the explicit bounding frame for Button 4 (Self Practice Card)
-        int b4Y = (90 + 15) + (buttonH + 15) * 3;
-        Rectangle b4Bounds = {(float)buttonX, (float)b4Y, (float)buttonW,
-                              (float)buttonH};
-
-        if (CheckCollisionPointRec(mouse, b4Bounds)) {
-          std::cout << "[ROUTE] : User triggered Menu Card 4 -> Transition to "
-                       "Self Practice Mode\n";
-          currentScreenMode = 1; // Slide application into gameplay loop
-        }
+        ChessMenu::logic::UpdateMenuElement(width, height, mouse,
+                                            currentScreenMode, currentMenuMode);
       }
-    } else if (currentScreenMode == ChessMode::CHESSY_MODE_PLAYCF) {
+    } else if (currentScreenMode ==
+               ChessMode::CHESSY_MODE_PLAYCF) { // since we are playing.
       // FIXED: Swapped sound arguments order to perfectly match utils.h
       // template definition
       ChessInput::ProcessDualInput(
@@ -161,49 +170,59 @@ private:
     BeginDrawing();
 
     if (currentScreenMode == ChessMode::CHESSY_MODE_NORMAL) {
-      // Pass the persistent, scaling width/height parameters down directly
-      ChessMenu::DrawStartMenu(palette, font, this->width, this->height,
-                               this->sdfShader);
+
+      // HOME menu / page
+      if (currentMenuMode == ChessUI::CHESSY_MODE_HOME)
+        // Pass the persistent, scaling width/height parameters down directly
+        ChessMenu::DrawStartMenu(palette, font, this->width, this->height,
+                                 this->sdfShader);
+
+      if (currentMenuMode == ChessUI::CHESSY_MODE_ABOUT)
+        ChessMenu::Draw
     } else if (currentScreenMode == ChessMode::CHESSY_MODE_PLAYCF) {
       if (IsKeyPressed(KEY_SPACE)) {
         std::cout << "[DEBUG] : Playing sound check.\n";
         PlaySound(soundCheck);
       }
+
       ClearBackground(palette["background_dark"]);
 
-      // Draw the chessboard
-      ChessVisuals::DrawChessboard(palette);
+      // For the practice menu
+      if (currentMenuMode == ChessUI::CHESSY_MODE_PRACTICE) {
+        // Draw the chessboard
+        ChessVisuals::DrawChessboard(palette);
 
-      // Update highlights to track the unified click status
-      ChessVisuals::DrawActiveHighlights(palette, mouseInteraction);
-      ChessVisuals::DrawHoverHighlight(palette);
+        // Update highlights to track the unified click status
+        ChessVisuals::DrawActiveHighlights(palette, mouseInteraction);
+        ChessVisuals::DrawHoverHighlight(palette);
 
-      ChessUI::DrawSelectedPieceUIDots(mouseInteraction, currentTurn,
-                                       boardState, castling_rights, palette,
-                                       soundCheck);
+        ChessUI::DrawSelectedPieceUIDots(mouseInteraction, currentTurn,
+                                         boardState, castling_rights, palette,
+                                         soundCheck);
 
-      // Draw a deep red warning block under the King if checked
-      ChessUI::DrawBoardUIKingChecked(currentTurn, boardState, castling_rights,
-                                      palette, soundCheck, hasChecked,
-                                      currentScreenMode, currentMenuMode,
-                                      whiteCaptured, blackCaptured);
+        // Draw a deep red warning block under the King if checked
+        ChessUI::DrawBoardUIKingChecked(
+            currentTurn, boardState, castling_rights, palette, soundCheck,
+            hasChecked, currentScreenMode, currentMenuMode, whiteCaptured,
+            blackCaptured);
 
-      // Paint piece textures with hybrid mouse tracking
-      ChessVisuals::DrawPiecesWithHybridControls(
-          boardState, whiteTextures, blackTextures, mouseInteraction);
+        // Paint piece textures with hybrid mouse tracking
+        ChessVisuals::DrawPiecesWithHybridControls(
+            boardState, whiteTextures, blackTextures, mouseInteraction);
 
-      // BeginShaderMode(this->sdfShader);
-      // Draw the UI (Menu Sidebar)
-      ChessVisuals::DrawGameUI(palette, font, whiteCaptured, blackCaptured,
-                               whiteTextures, blackTextures);
-      // EndShaderMode();
+        // BeginShaderMode(this->sdfShader);
+        // Draw the UI (Menu Sidebar)
+        ChessVisuals::DrawGameUI(palette, font, whiteCaptured, blackCaptured,
+                                 whiteTextures, blackTextures);
+        // EndShaderMode();
 
-      // Draw the promotion UI
-      if (activePromotion.active) {
-        Vector2 mousePos = GetMousePosition();
-        ChessVisuals::DrawPawnPromotionUI(
-            activePromotion.row, activePromotion.col, activePromotion.color,
-            whiteTextures, blackTextures, mousePos, palette);
+        // Draw the promotion UI
+        if (activePromotion.active) {
+          Vector2 mousePos = GetMousePosition();
+          ChessVisuals::DrawPawnPromotionUI(
+              activePromotion.row, activePromotion.col, activePromotion.color,
+              whiteTextures, blackTextures, mousePos, palette);
+        }
       }
     }
 

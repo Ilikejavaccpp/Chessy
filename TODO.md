@@ -14,6 +14,8 @@ A TODO list for this chessy project.
 * Some ui implementations. [DONE] [NOTE `completed checkmate logic and menu swapping also`]
 * More minor ui implementations -- like adding a home button to the sidebar panel (play mode). [TODO `tomm.`]
 * Enable en passant and pawn promotion with slick ui; **IMPORTANT**  [DONE] [NOTE `look at it, it is cool.`]
+* Make it so that I have the correct width height, etc. dimensions for the header nav. (modular step 2)
+  This bullet is for chessy v1.0.4 [TODO `tomm.`]
 
 ## Implementation (Future)
 

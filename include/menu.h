@@ -14,19 +14,10 @@
 // This is an alias of `piece/pieces.h/@ PieceColor` to not get confused
 using TurnColor = PieceColor; // to not get confused when defining turns
 
+// Just for habits
 namespace ChessUI {
-enum CHESSY_UI_MENU_MODE {
-  CHESSY_MODE_UNSELECTED = -1,
-  CHESSY_MODE_HOME = 0,
-  CHESSY_MODE_ABOUT,
-  CHESSY_MODE_HELP,
-  CHESSY_MODE_NEWS,
-  CHESSY_MODE_IMPEXP,
-  CHESSY_MODE_OPENING,
-  CHESSY_MODE_PRACTICE,
-  CHESSY_MODE_COMPUTER,
-  CHESSY_MODE_ONLINE
-};
+// CHESSY_UI_MENU_MODE
+// was defined here. MAY PUT OTHER STUFF THO
 }
 
 namespace ChessUI {
@@ -286,5 +277,61 @@ inline void DrawStartMenu(Colorscheme &palette, Font &font, int width,
 
   DrawRectangleLinesEx({panelX, 90, panelW, boardSize}, 1,
                        palette["background_dark_menu_body"]);
+}
+
+inline void DrawAboutMenu(Colorscheme &palette, Font &font, int width,
+                          int height, Shader &sdfShader) {
+  ClearBackground(palette["background_dark"]);
+
+  float w = static_cast<float>(width);
+  float h = static_cast<float>(height);
+
+  // ALIGNED: Feeds identical frame floats directly into the drawer engine
+  // layout pass
+  MenuUI ui = GetDynamicLayout(w, h);
+  Vector2 mouse = GetMousePosition();
+
+  // The button for home. must be so that once we click about again, it
+  // teleports us to home.
+  // Therefore, let's use the home header row, again.
+  DrawRectangle(20, 20, w - 40, 50, palette["background_dark_menu_header"]);
+
+  auto GetLinkColor = [&](Rectangle rec) {
+    return CheckCollisionPointRec(mouse, rec) ? palette["accent"]
+                                              : palette["foreground_dark"];
+  };
+
+  // BeginShaderMode(sdfShader); // for some reason, this really fucks up the
+  //                             // font.
+  //                             // and I don't want the scenario where it
+  //                             // mysteriously stops working.
+
+  // The headers
+  DrawTextEx(font, "About", {35, 33}, 21, 1.4f, GetLinkColor(ui.navAbout));
+  DrawTextEx(font, "Help", {145, 33}, 21, 1.4f, GetLinkColor(ui.navHelp));
+  DrawTextEx(font, "News", {235, 33}, 21, 1.4f, GetLinkColor(ui.navNews));
+  DrawTextEx(font, "Opening Library", {325, 33}, 21, 1.4f,
+             GetLinkColor(ui.navOpeningLib));
+  DrawTextEx(font, "Imp/Export", {535, 33}, 21, 1.4f,
+             GetLinkColor(ui.navImpExport));
+
+  // Custom button drawer
+  // Lambda function so that we don't have a gazillion functions.
+  // There are too many functions in this project
+  auto DrawMenuButton = [&](Rectangle rec, const char *label) {
+    bool hover = CheckCollisionPointRec(mouse, rec);
+    DrawRectangleRec(rec, hover ? palette["hover_button"]
+                                : palette["background_dark_menu_body"]);
+    DrawRectangleLinesEx(rec, 1,
+                         hover ? palette["hover_button_outline"]
+                               : palette["background_dark_menu_header"]);
+    DrawTextEx(
+        font, label, {rec.x + 20, rec.y + (rec.height / 2.0f) - 10}, 20, 1.2f,
+        hover ? palette["hover_button_text"] : palette["foreground_dark"]);
+  };
+
+  // Check the collision points and update in the next big function `utils.h`.
+  // The reviewer will be cooked i guess... Welp i am the reviewer so :sob:
+  // :sob:
 }
 } // namespace ChessMenu

@@ -16,6 +16,22 @@
 #ifndef CHESSY_UTILS_H
 #define CHESSY_UTILS_H
 
+namespace ChessUI {
+enum CHESSY_UI_MENU_MODE {
+  CHESSY_MODE_UNSELECTED = -1,
+  CHESSY_MODE_HOME = 0,
+  CHESSY_MODE_ABOUT,
+  CHESSY_MODE_HELP,
+  CHESSY_MODE_NEWS,
+  CHESSY_MODE_IMPEXP,
+  CHESSY_MODE_OPENING,
+  CHESSY_MODE_PRACTICE,
+  CHESSY_MODE_COMPUTER,
+  CHESSY_MODE_ONLINE,
+  CHESSY_MODE_PUZZLE
+};
+}
+
 struct ChessMouseInteraction {
   bool isDown = false; // Is the left mouse button actively held down? (crucial
                        // for dragging)
@@ -631,9 +647,14 @@ inline int findOption(char **list, int listSize, std::string_view targetOption,
 
 // ChessMenu for `menu.h`, specifically the options
 namespace ChessMenu::logic {
-inline void
-UpdateMenuElement(int width, int height, Vector2 mouse,
-                  enum ChessMode::CHESSY_UTIL_MENU_MODE &currentScreenMode) {
+inline void UpdateMenuElement(
+    int width, int height, Vector2 mouse,
+    int &currentScreenMode, // you can't pass `ChessMenu::CHESSY_UTIL_MENU_MODE`
+                            // here since that will result in a compiler panic
+                            // about non-const lvalue param reference. Since
+                            // anyways the enum members convert to `int`, pass
+                            // it like so
+    enum ChessUI::CHESSY_UI_MENU_MODE &currentMenuMode) {
   // Mirror the layout metrics utilized inside the DrawStartMenu rendering
   // canvas
   int boardSize = height - 130;
@@ -643,20 +664,39 @@ UpdateMenuElement(int width, int height, Vector2 mouse,
   int buttonW = panelW - 40;
   int buttonH = (boardSize - (15 * 5)) / 4;
 
+  // Compute the explicit bounding frame for Button 3 (Daily puzzles)
+  int b3Y = (90 + 15) + (buttonH + 15) * 2;
+  Rectangle b3Bounds = {(float)buttonX, (float)b3Y, (float)buttonW,
+                        (float)buttonH};
+
   // Compute the explicit bounding frame for Button 4 (Self Practice Card)
   int b4Y = (90 + 15) + (buttonH + 15) * 3;
   Rectangle b4Bounds = {(float)buttonX, (float)b4Y, (float)buttonW,
                         (float)buttonH};
 
+  // Collision logic
+  // Button number 4
   if (CheckCollisionPointRec(mouse, b4Bounds)) {
     std::cout << "[ROUTE] : User triggered Menu Card 4 -> Transition to "
                  "Self Practice Mode\n";
     currentScreenMode =
         ChessMode::CHESSY_MODE_PLAYCF; // Slide application into gameplay loop
+    currentMenuMode = ChessUI::CHESSY_MODE_PRACTICE;
+  }
+  // Button number 3
+  if (CheckCollisionPointRec(mouse, b3Bounds)) {
+    std::cout
+        << "[ROUTE] : User triggered Menu Card 3 -> Transition to Puzzles\n";
+    currentScreenMode = ChessMode::CHESSY_MODE_PLAYCF;
+    currentMenuMode = ChessUI::CHESSY_MODE_PUZZLE;
   }
 
   // Add more elements below
 }
+
+inline void
+UpdateMenuHeader(int width, int height, Vector2 mouse, int &currentScreenMode,
+                 enum ChessUI::CHESSY_UI_MENU_MODE &currentMenuMode) {}
 } // namespace ChessMenu::logic
 
 #endif
