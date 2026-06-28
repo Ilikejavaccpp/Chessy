@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "core/board.h"
 #include "core/colorscheme.h"
 #include "core/dimensions.h"
 #include "core/logic.h"
@@ -86,9 +87,23 @@ private:
   int promotionRow = -1; // not selected
   int promotionCol = -1; // not selected
 
+  // Board based switch and saving...
+  ChessCore::ui::ChessBoardMode
+      board_mode; // this is crucial
+                  // very very crucial breaking prone
+                  // or fragile (maybe naming conventions like `this`)
+                  // use snake_case.
+
   /**********************************************************
    * Helper functions that are necessary.
    **********************************************************/
+
+  // The draw accent for menu helper so that you don't get stuck in the play
+  // mode
+  Color GetLinkColor(Rectangle rec, Vector2 mouse) {
+    return CheckCollisionPointRec(mouse, rec) ? palette["accent"]
+                                              : palette["foreground_dark"];
+  }
 
   // The update function, needs dependency file (chessy header file) `utils.h`
   void update() {
@@ -97,12 +112,13 @@ private:
       ToggleFullscreen();
     }
 
-    // 2. Capture hardware-level resizes or sudden fullscreen resolution updates
+    // 2. Capture (hardware-level) resizes or sudden fullscreen resolution
+    // updates
     if (IsWindowResized() || IsKeyPressed(KEY_F11)) {
       this->width = GetScreenWidth();
       this->height = GetScreenHeight();
 
-      // Recalculate your global layout constraints live across frame
+      // Recalculate the global layout constraints live across frame
       // transitions
       // NOTE: MAGIC NUMBER was 140
       squareSize = (this->height - 160) / 8;
@@ -111,12 +127,15 @@ private:
       boardOffsetY = 90;
       boardOffsetX = 40;
 
-      // Scale your side panel grid cleanly alongside the remaining window
+      // Scale the side panel grid cleanly alongside the remaining window
       // workspace space
       panelWidth = this->width - (boardOffsetX + (8 * squareSize)) - 60;
       if (panelWidth < 150)
         panelWidth = 150;
 
+      // Make sure that there is no titlebar or border for that
+      // `focused` view
+      // This is optional... you can make it anything you want.
       ClearWindowState(FLAG_WINDOW_UNDECORATED);
     }
 
@@ -152,8 +171,11 @@ private:
         //   currentScreenMode = 1; // Slide application into gameplay loop
         // }
 
-        ChessMenu::logic::UpdateMenuElement(width, height, mouse,
-                                            currentScreenMode, currentMenuMode);
+        if (currentMenuMode == ChessUI::CHESSY_MODE_HOME)
+          ChessMenu::logic::UpdateMenuElement(
+              width, height, mouse, currentScreenMode, currentMenuMode);
+        ChessMenu::logic::UpdateMenuHeader(width, height, mouse,
+                                           currentScreenMode, currentMenuMode);
       }
     } else if (currentScreenMode ==
                ChessMode::CHESSY_MODE_PLAYCF) { // since we are playing.
@@ -163,6 +185,10 @@ private:
           boardState, currentTurn, mouseInteraction, whiteCaptured,
           blackCaptured, castling_rights, soundCapture, soundCastle, soundCheck,
           soundMove, enPassantTargetRow, enPassantTargetCol);
+
+      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        ChessMenu::logic::UpdateMenuHeader(width, height, GetMousePosition(),
+                                           currentScreenMode, currentMenuMode);
     }
   }
 
@@ -178,7 +204,12 @@ private:
                                  this->sdfShader);
 
       if (currentMenuMode == ChessUI::CHESSY_MODE_ABOUT)
-        ChessMenu::Draw
+        ChessMenu::DrawAboutMenu(palette, font, font_normal, width, height,
+                                 sdfShader);
+
+      if (currentMenuMode == ChessUI::CHESSY_MODE_HELP)
+        ChessMenu::DrawHelpMenu(palette, font, font_normal, width, height,
+                                sdfShader);
     } else if (currentScreenMode == ChessMode::CHESSY_MODE_PLAYCF) {
       if (IsKeyPressed(KEY_SPACE)) {
         std::cout << "[DEBUG] : Playing sound check.\n";
@@ -189,6 +220,8 @@ private:
 
       // For the practice menu
       if (currentMenuMode == ChessUI::CHESSY_MODE_PRACTICE) {
+        board_mode.SetMode(board_mode.mod_practice);
+
         // Draw the chessboard
         ChessVisuals::DrawChessboard(palette);
 
@@ -222,6 +255,63 @@ private:
           ChessVisuals::DrawPawnPromotionUI(
               activePromotion.row, activePromotion.col, activePromotion.color,
               whiteTextures, blackTextures, mousePos, palette);
+        }
+      }
+
+      // For the puzzle menu
+      if (currentMenuMode == ChessUI::CHESSY_MODE_PUZZLE) {
+        board_mode.SetMode(board_mode.mod_puzzles);
+        Vector2 mouse = GetMousePosition();
+
+        DrawRectangle(20, 20, this->width - 40, 50,
+                      palette["background_dark_menu_header"]);
+
+        DrawTextEx(font, "About", {35, 33}, 21, 1.4f,
+                   GetLinkColor(this->start_ui.navAbout, mouse));
+        DrawTextEx(font, "Help", {145, 33}, 21, 1.4f,
+                   GetLinkColor(this->start_ui.navHelp, mouse));
+        DrawTextEx(font, "News", {235, 33}, 21, 1.4f,
+                   GetLinkColor(this->start_ui.navNews, mouse));
+        DrawTextEx(font, "Opening Library", {325, 33}, 21, 1.4f,
+                   GetLinkColor(this->start_ui.navOpeningLib, mouse));
+        DrawTextEx(font, "Imp/Export", {535, 33}, 21, 1.4f,
+                   GetLinkColor(this->start_ui.navImpExport, mouse));
+
+        {
+          // Draw the chessboard
+          ChessVisuals::DrawChessboard(palette);
+
+          // Update highlights to track the unified click status
+          ChessVisuals::DrawActiveHighlights(palette, mouseInteraction);
+          ChessVisuals::DrawHoverHighlight(palette);
+
+          ChessUI::DrawSelectedPieceUIDots(mouseInteraction, currentTurn,
+                                           boardState, castling_rights, palette,
+                                           soundCheck);
+
+          // Draw a deep red warning block under the King if checked
+          ChessUI::DrawBoardUIKingChecked(
+              currentTurn, boardState, castling_rights, palette, soundCheck,
+              hasChecked, currentScreenMode, currentMenuMode, whiteCaptured,
+              blackCaptured);
+
+          // Paint piece textures with hybrid mouse tracking
+          ChessVisuals::DrawPiecesWithHybridControls(
+              boardState, whiteTextures, blackTextures, mouseInteraction);
+
+          // BeginShaderMode(this->sdfShader);
+          // Draw the UI (Menu Sidebar)
+          ChessVisuals::DrawGameUI(palette, font, whiteCaptured, blackCaptured,
+                                   whiteTextures, blackTextures);
+          // EndShaderMode();
+
+          // Draw the promotion UI
+          if (activePromotion.active) {
+            Vector2 mousePos = GetMousePosition();
+            ChessVisuals::DrawPawnPromotionUI(
+                activePromotion.row, activePromotion.col, activePromotion.color,
+                whiteTextures, blackTextures, mousePos, palette);
+          }
         }
       }
     }
@@ -281,7 +371,19 @@ public:
 
       std::cout << "[INFO] : Closing Raylib and unloading raylib instances... "
                    "-> WAIT\n";
+
+      std::cout << "[INFO] : Unloading the fonts...";
+      std::cout << "[INFO] : Unloaded font `font`, -> NAME font.="
+                << "nffont.ttf" << "\n";
+      UnloadFont(this->font);
       std::cout << "[INFO] : Successfully unloaded font with path " << font_path
+                << ".-> SUCCESS\n";
+
+      std::cout << "[INFO] : Unloaded font `font`, -> NAME font.="
+                << "nffont_reg.ttf" << "\n";
+      UnloadFont(this->font_normal);
+      std::cout << "[INFO] : Successfully unloaded font with path "
+                << "assets/fonts/nffont_reg.ttf"
                 << ".-> SUCCESS\n";
 
       close();
@@ -332,6 +434,9 @@ public:
     // Load the fonts
     this->font = loadChessFont(font_path);
     this->font_normal = loadChessFont("assets/fonts/nffont_reg.ttf");
+
+    // Populate the ui
+    start_ui = ChessMenu::GetDynamicLayout(this->width, this->height);
 
     // Call the mainloop method.
     mainloop();

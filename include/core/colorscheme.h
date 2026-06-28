@@ -139,6 +139,13 @@ public:
     append_color("hover_button_outline",
                  CHESSY_COLOR_DARK_HOVER_BUTTON_OUTLINE);
     append_color("hover_button_text", CHESSY_COLOR_DARK_HOVER_BUTTON_TEXT);
+
+    // Set the color for the scrollwheel.
+    append_color("background_dark_scrollbar",
+                 CHESSY_COLOR_DARK_BACKGROUND_MENU_HEADER); // default theme,
+                                                            // also i am lazy.
+    append_color("background_dark_scrollbar_current",
+                 ColorAlpha(CHESSY_COLOR_DARK_FOREGROUND, 0.7)); // gray
   }
 
   // Adds a color to the back row.

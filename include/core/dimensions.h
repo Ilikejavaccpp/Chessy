@@ -36,4 +36,19 @@ inline int boardOffsetY = (height - (boardSize * squareSize)) / 2;
 inline int panelWidth = 260;
 inline const int padding = 40;
 
+// Header elements
+struct header_padding {
+
+  // About page
+  unsigned short about_text_left;
+  unsigned short about_text_right;
+  unsigned short about_text_up;   // from the header (in the main container)
+  unsigned short about_text_down; // from the text.
+
+  unsigned short about_container_main_up;    // padding of the container 
+  unsigned short about_container_main_down;  // padding of the container ^
+  unsigned short about_container_main_left;  // padding of the container >
+  unsigned short about_container_main_right; // padding of the container <
+};
+
 #endif

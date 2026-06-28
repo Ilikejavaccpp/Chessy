@@ -1,0 +1,9 @@
+If:
+  PathMatch: (core/.*\.h|include/.*\.h|src/.*\.cpp)
+CompileFlags:
+  Add: [-xc++, -std=c++23, -Lraylib, -Iinclude, -Ilib/raylib/src, -Lbin/chessy_clayb_driver.o]
+
+If:
+  PathMatch: (include/backend/.*\.h|src/clay_impl\.c)
+CompileFlags:
+  Add: [-xc, -std=c11, -Lbin/smolInt_driver.o]

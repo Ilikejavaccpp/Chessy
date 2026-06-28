@@ -33,19 +33,34 @@ namespace ChessGlyphs {
 // inline const char *B_QUEEN = "\u265B";
 // inline const char *B_KING = "\u265A";
 
-inline const char *B_PAWN = u8"♙";   // ♙
-inline const char *B_KNIGHT = u8"♘"; // ♘
-inline const char *B_BISHOP = u8"♗"; // ♗
-inline const char *B_ROOK = u8"♖";   // ♖
-inline const char *B_QUEEN = u8"♕";  // ♕
-inline const char *B_KING = u8"♔";   // ♔
+// Older versions
+// inline const char *B_PAWN = u8"♙";   // ♙
+// inline const char *B_KNIGHT = u8"♘"; // ♘
+// inline const char *B_BISHOP = u8"♗"; // ♗
+// inline const char *B_ROOK = u8"♖";   // ♖
+// inline const char *B_QUEEN = u8"♕";  // ♕
+// inline const char *B_KING = u8"♔";   // ♔
+//
+// inline const char *W_PAWN = u8"♟";   // ♟
+// inline const char *W_KNIGHT = u8"♞"; // ♞
+// inline const char *W_BISHOP = u8"♝"; // ♝
+// inline const char *W_ROOK = u8"♜";   // ♜
+// inline const char *W_QUEEN = u8"♛";  // ♛
+// inline const char *W_KING = u8"♚";   // ♚
 
-inline const char *W_PAWN = u8"♟";   // ♟
-inline const char *W_KNIGHT = u8"♞"; // ♞
-inline const char *W_BISHOP = u8"♝"; // ♝
-inline const char *W_ROOK = u8"♜";   // ♜
-inline const char *W_QUEEN = u8"♛";  // ♛
-inline const char *W_KING = u8"♚";   // ♚
+inline const char *B_PAWN = "♙";   // ♙
+inline const char *B_KNIGHT = "♘"; // ♘
+inline const char *B_BISHOP = "♗"; // ♗
+inline const char *B_ROOK = "♖";   // ♖
+inline const char *B_QUEEN = "♕";  // ♕
+inline const char *B_KING = "♔";   // ♔
+
+inline const char *W_PAWN = "♟";   // ♟
+inline const char *W_KNIGHT = "♞"; // ♞
+inline const char *W_BISHOP = "♝"; // ♝
+inline const char *W_ROOK = "♜";   // ♜
+inline const char *W_QUEEN = "♛";  // ♛
+inline const char *W_KING = "♚";   // ♚
 } // namespace ChessGlyphs
 
 #endif

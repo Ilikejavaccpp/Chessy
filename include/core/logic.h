@@ -2,9 +2,10 @@
 
 #include <cstring>
 // #include <iostream>
+#include <string_view> // since string allocates on the heap
 #include <vector>
-// IMPLEMENT EN-PASSANT LOGIC HERE,
-// PROMOTION MAYBE TOMORROW.
+// IMPLEMENT EN-PASSANT LOGIC HERE, -> DONE
+// PROMOTION MAYBE TOMORROW. -> DONE
 #include "core/dimensions.h" // <- magic numbers HERE
 #include "pieces/bishop.h"
 #include "pieces/king.h"
@@ -267,6 +268,51 @@ GetLegalMovesForPiece(int fRow, int fCol, PieceColor currentTurn,
   }
 
   return valid_destinations;
+}
+
+/*
+ * This is basically since it also returns stuff for like stalemate and stuff.
+ * This function *ONLY* works when we are in a situation where the posibilities
+ * are MOVE, BLOCK and CAPTURE (these last two are for the checkmate scenario.)
+ *
+ * This returns a string: `"checkmate"` for checkmate and `"stalemate"` for
+ * stalemate and `"none"` if you can move and there is no stalemate or
+ * checkmate. In the future, this will update the score board.
+ *
+ * Since this project is in C++ (C support in the future if I can deploy) with
+ * `std::cout` logging... You really can't use `const char *`. First of all: the
+ * C++ standard library is already big enough.
+ */
+inline std::string_view GetKingMBCState(PieceColor &currentTurn,
+                                        ChessBoardMatrix &board,
+                                        CastlingRights &rights) {
+  for (unsigned char r = 0; r < 8; ++r)
+    for (unsigned char c = 0; c < 8; ++c)
+      if (board[r][c].color == currentTurn && board[r][c].type != EMPTY) {
+        // If ANY friendly piece on the board has even ONE legal move available,
+        // it means they can block, capture, or move out of the check. Not
+        // checkmate/stalemate. Also since like you have to be in check for the
+        // checkmate or stalemate condition to take place, what we can do is
+        // just put a nice if at the end of this to seal the deal.
+        auto legalMoves =
+            ChessLogic::GetLegalMovesForPiece(r, c, currentTurn, board, rights);
+
+        // If there are moves... then it is NOT checkmate/stalemate.
+        if (!legalMoves.empty())
+          return "none";
+      }
+
+  // Now the deciding factor...
+  // If you are in check and don't have the no-checkmate criteria, i.e.
+  // Move Block Capture....
+  // then you are in checkmate and you lost; *else* you secured a nice draw (i'm
+  // proud of you)
+  if (IsKingInCheck(currentTurn, board, rights))
+    return "checkmate";
+  else
+    return "stalemate";
+
+  return "none"; // there is no such thing
 }
 } // namespace ChessLogic
 

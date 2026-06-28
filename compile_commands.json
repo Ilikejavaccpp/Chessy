@@ -1,7 +1,17 @@
 [
   {
     "file": "src/main.cpp",
-    "command": "clang++ -Ilib/raylib/src -Iinclude -Llib/raylib/src -Llib/ src/main.cpp -o bin/chessy",
+    "command": "clang++ -std=c++23 -Ilib/raylib/src -Ilib/clay -Iinclude -Llib/raylib/src -Llib/ src/main.cpp -o bin/chessy",
+    "directory": "/home/yyarch/projects/chessy"
+  },
+  {
+    "file": "src/clay_impl.c",
+    "command": "clang -std=c11 -Ilib/clay -c src/clay_impl.c -o bin/clay_impl.o",
+    "directory": "/home/yyarch/projects/chessy"
+  },
+  {
+    "file": "include/backend/file_io.h",
+    "command": "clang -std=c11 -c include/backend/file_io.c -Lbin/smolInt_driver.o -o bin/chessy_fiob_driver.o",
     "directory": "/home/yyarch/projects/chessy"
   }
 ]

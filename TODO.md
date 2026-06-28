@@ -20,8 +20,18 @@ A TODO list for this chessy project.
 ## Implementation (Future)
 
 * The Menu (refer to `doc/README.md`) [TODO `tomm.`] [DONE]
-* More minor ui implementations -- like adding a home button to the sidebar panel (play mode). [TODO `tomm.`]
-* Sound, Images, Usernames [2/3] [TODO `tomm.` => MAYBE] [TODO SOMEDAY]
+* More minor ui implementations -- like adding a home button to the sidebar panel (play mode). [TODO `tomm.`] [SOMEWHAT DONE]
+* Sound, Images, Usernames [2/3] [TODO `tomm.` => MAYBE] [TODO not !SOMEDAY! instead `next implementation`]
+
+* File encryption and decryption, stockfish and engine stuff, and the holy multiple playing style
+with a game report (v1.0.6) and opening lib (v1.0.7) + imp/export (v1.0.6 & tweak to v1.0.7).
+
 * Accounts 
 * Imports
 * DEPLOYMENT -> ready
+
+# Status
+
+Deployment as a standalone can-play chess app -> READY
+Deployment as the main goal -> NOT ready
+About 53% done of the main stuff we want to implement.

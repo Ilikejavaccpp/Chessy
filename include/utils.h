@@ -6,8 +6,11 @@
 #include <iostream>
 #include <raylib.h>
 #include <string>
+#include <string_view> // for high optimizations...
 #include <vector>
 
+#include "backend/smolInt.hpp"
+#include "core/board.h"
 #include "core/colorscheme.h"
 #include "core/dimensions.h"
 #include "core/logic.h"
@@ -15,6 +18,58 @@
 
 #ifndef CHESSY_UTILS_H
 #define CHESSY_UTILS_H
+
+// these are for text related stuff, since the padding keeps breaking
+#if defined(__cplusplus) && defined(CHESSY_CONFIG_USE_COMPAT_NONC)
+
+enum class TextBlockType {
+  text_Header,
+  text_Body // no need for footer since we can use stuff.
+};
+
+struct TextBlockProfile {
+private:
+  const char *text;
+  TextBlockType type;
+
+public:
+  void setType(TextBlockType type) { this->type = type; }
+
+  void setText(const char *text) { this->text = text; }
+};
+
+#endif
+
+// the nice newline sep.
+#define CHESSY_CSS_MENU__header_body_sep "\n\n"
+
+// TextBlockType
+enum class TextBlockType {
+  text_Header,
+  text_Body // no need for footer since we can use stuff.
+};
+
+struct TextBlockProfile {
+  const char *text;
+  TextBlockType type;
+};
+
+#ifdef __cplusplus
+namespace ChessMenu::text {
+#endif
+
+// C compatibility
+inline void setType(TextBlockProfile *__this, TextBlockType type) {
+  __this->type = type;
+}
+
+inline void setText(TextBlockProfile *__this, const char *text) {
+  __this->text = text;
+}
+
+#ifdef __cplusplus
+} // namespace ChessMenu::text
+#endif
 
 namespace ChessUI {
 enum CHESSY_UI_MENU_MODE {
@@ -645,6 +700,366 @@ inline int findOption(char **list, int listSize, std::string_view targetOption,
 }
 } // namespace Vendor::ypkg
 
+namespace Vendor::raylib {
+
+// Draw text using font inside rectangle limits with support for text selection
+inline void DrawTextBoxedSelectable(Font font, const char *text, Rectangle rec,
+                                    float fontSize, float spacing,
+                                    bool wordWrap, Color tint, int selectStart,
+                                    int selectLength, Color selectTint,
+                                    Color selectBackTint) {
+  int length = TextLength(
+      text); // Total length in bytes of the text, scanned by codepoints in loop
+
+  float textOffsetY = 0;    // Offset between lines (on line break '\n')
+  float textOffsetX = 0.0f; // Offset X to next character to draw
+
+  float scaleFactor =
+      fontSize / (float)font.baseSize; // Character rectangle scaling factor
+
+  // Word/character wrapping mechanism variables
+  enum { MEASURE_STATE = 0, DRAW_STATE = 1 };
+  int state = wordWrap ? MEASURE_STATE : DRAW_STATE;
+
+  int startLine = -1; // Index where to begin drawing (where a line begins)
+  int endLine = -1;   // Index where to stop drawing (where a line ends)
+  int lastk = -1;     // Holds last value of the character position
+
+  for (int i = 0, k = 0; i < length; i++, k++) {
+    // Get next codepoint from byte string and glyph index in font
+    int codepointByteCount = 0;
+    int codepoint = GetCodepoint(&text[i], &codepointByteCount);
+    int index = GetGlyphIndex(font, codepoint);
+
+    // NOTE: Normally we exit the decoding sequence as soon as a bad byte is
+    // found (and return 0x3f) but we need to draw all of the bad bytes using
+    // the '?' symbol moving one byte
+    if (codepoint == 0x3f)
+      codepointByteCount = 1;
+    i += (codepointByteCount - 1);
+
+    float glyphWidth = 0;
+    if (codepoint != '\n') {
+      glyphWidth = (font.glyphs[index].advanceX == 0)
+                       ? font.recs[index].width * scaleFactor
+                       : font.glyphs[index].advanceX * scaleFactor;
+
+      if (i + 1 < length)
+        glyphWidth = glyphWidth + spacing;
+    }
+
+    // NOTE: When wordWrap is ON we first measure how much of the text we can
+    // draw before going outside of the rec container We store this info in
+    // startLine and endLine, then we change states, draw the text between those
+    // two variables and change states again and again recursively until the end
+    // of the text (or until we get outside of the container) When wordWrap is
+    // OFF we don't need the measure state so we go to the drawing state
+    // immediately and begin drawing on the next line before we can get outside
+    // the container
+    if (state == MEASURE_STATE) {
+      // TODO: There are multiple types of spaces in UNICODE, maybe it's a good
+      // idea to add support for more Ref: http://jkorpela.fi/chars/spaces.html
+      if ((codepoint == ' ') || (codepoint == '\t') || (codepoint == '\n') ||
+          (codepoint == 0x00A0) || (codepoint == 0x2009))
+        endLine = i;
+
+      if ((textOffsetX + glyphWidth) > rec.width) {
+        endLine = (endLine < 1) ? i : endLine;
+        if (i == endLine)
+          endLine -= codepointByteCount;
+        if ((startLine + codepointByteCount) == endLine)
+          endLine = (i - codepointByteCount);
+
+        state = !state;
+      } else if ((i + 1) == length) {
+        endLine = i;
+        state = !state;
+      } else if (codepoint == '\n')
+        state = !state;
+
+      if (state == DRAW_STATE) {
+        textOffsetX = 0;
+        i = startLine;
+        glyphWidth = 0;
+
+        // Save character position when we switch states
+        int tmp = lastk;
+        lastk = k - 1;
+        k = tmp;
+      }
+    } else {
+      if (codepoint == '\n') {
+        if (!wordWrap) {
+          textOffsetY +=
+              (font.baseSize + (float)font.baseSize / 2) * scaleFactor;
+          textOffsetX = 0;
+        }
+      } else {
+        if (!wordWrap && ((textOffsetX + glyphWidth) > rec.width)) {
+          textOffsetY +=
+              (font.baseSize + (float)font.baseSize / 2) * scaleFactor;
+          textOffsetX = 0;
+        }
+
+        // When text overflows rectangle height limit, just stop drawing
+        if ((textOffsetY + font.baseSize * scaleFactor) > rec.height)
+          break;
+
+        // Draw selection background
+        bool isGlyphSelected = false;
+        if ((selectStart >= 0) && (k >= selectStart) &&
+            (k < (selectStart + selectLength))) {
+          DrawRectangleRec((Rectangle){rec.x + textOffsetX - 1,
+                                       rec.y + textOffsetY, glyphWidth,
+                                       (float)font.baseSize * scaleFactor},
+                           selectBackTint);
+          isGlyphSelected = true;
+        }
+
+        // Draw current character glyph
+        if ((codepoint != ' ') && (codepoint != '\t')) {
+          DrawTextCodepoint(font, codepoint,
+                            (Vector2){rec.x + textOffsetX, rec.y + textOffsetY},
+                            fontSize, isGlyphSelected ? selectTint : tint);
+        }
+      }
+
+      if (wordWrap && (i == endLine)) {
+        textOffsetY += (font.baseSize + (float)font.baseSize / 2) * scaleFactor;
+        textOffsetX = 0;
+        startLine = endLine;
+        endLine = -1;
+        glyphWidth = 0;
+        selectStart += lastk - k;
+        k = lastk;
+
+        state = !state;
+      }
+    }
+
+    if ((textOffsetX != 0) || (codepoint != ' '))
+      textOffsetX += glyphWidth; // avoid leading spaces
+  }
+}
+// Draw text using font inside rectangle limits
+inline void DrawTextBoxed(Font font, const char *text, Rectangle rec,
+                          float fontSize, float spacing, bool wordWrap,
+                          Color tint) {
+  DrawTextBoxedSelectable(font, text, rec, fontSize, spacing, wordWrap, tint, 0,
+                          0, WHITE, WHITE);
+}
+} // namespace Vendor::raylib
+
+// Provides functions for clay.
+namespace Vendor::clay {
+inline float GetEstimatedContentHeight(Font font, const char *paragraphs[],
+                                       int totalParagraphs, float allowedWidth,
+                                       float fontSize,
+                                       float lineSpacingFactor) {
+  if (totalParagraphs <= 0 || allowedWidth <= 0)
+    return 0.0f;
+
+  float totalHeight = 0.0f;
+
+  // Fetch line metrics
+  float baseLineHeight = (float)font.baseSize;
+  if (fontSize != baseLineHeight) {
+    baseLineHeight = fontSize;
+  }
+  float verticalLineStep = baseLineHeight * lineSpacingFactor;
+
+  float dynamicCharSpacing = (fontSize / (float)font.baseSize);
+  if (dynamicCharSpacing < 1.0f)
+    dynamicCharSpacing = 1.0f;
+
+  // Pre-calculate width of a standard blank layout space using Raylib
+  float spaceWidth = MeasureTextEx(font, " ", fontSize, dynamicCharSpacing).x;
+
+  for (int p = 0; p < totalParagraphs; ++p) {
+    std::string_view paragraph = paragraphs[p];
+
+    if (paragraph.empty()) {
+      totalHeight += verticalLineStep;
+      continue;
+    }
+
+    float currentLineWidth = 0.0f;
+    int linesInParagraph = 1;
+
+    size_t start = 0;
+    size_t length = paragraph.length();
+
+    // High-performance pointer scanning loop (Zero dynamic memory allocations)
+    while (start < length) {
+      // 0. Count the newlines
+      if (paragraph[start] == '\n') {
+        linesInParagraph++;
+        currentLineWidth = 0.0f;
+        start++;
+        continue;
+      }
+
+      // 1. Skip over any standard spaces
+      while (start < length && (paragraph[start] == ' ')) {
+        start++;
+      }
+      if (start >= length)
+        break;
+      if (paragraph[start] == '\n')
+        continue; // keep searching (this will fix it)
+
+      // 2. Find the bound boundary edge of the current word
+      size_t end = start;
+      while (end < length && paragraph[end] != ' ' && paragraph[end] != '\n') {
+        end++;
+      }
+
+      // 3. Extract the word slice as a view
+      std::string_view word = paragraph.substr(start, end - start);
+      start = end; // advance iterator position
+
+      // Convert string_view momentarily to a null-terminated string context
+      // *safely* for Raylib DrawTextBoxed handles strings, MeasureTextEx needs
+      // a clean buffer. Rather than allocating string vectors, we pass small
+      // buffers or use text metrics. Raylib's text measurement requires a null
+      // terminator. We can temporarily measure it safely:
+      char wordBuffer[256];
+      size_t copyLen = (word.length() < 255) ? word.length() : 255;
+      char *targetPtr = wordBuffer;
+
+      // Optional: If a single word is insanely massive, allocate safe temporary
+      // buffer stack room (Still bypasses global heap overhead completely!)
+      std::vector<char> largeWordBuffer;
+      if (word.length() >= 255) {
+        largeWordBuffer.resize(word.length() + 1);
+        targetPtr = largeWordBuffer.data();
+        copyLen = word.length();
+      }
+
+      std::copy(word.begin(), word.begin() + copyLen, targetPtr);
+      targetPtr[copyLen] = '\0';
+
+      // Measure word bounds crisp against Raylib specs
+      float wordWidth =
+          MeasureTextEx(font, targetPtr, fontSize, dynamicCharSpacing).x;
+
+      if (currentLineWidth == 0.0f) {
+        currentLineWidth = wordWidth;
+      } else {
+        // If appending the word exceeds our right side container boundary, drop
+        // down a line box
+        if (currentLineWidth + spaceWidth + wordWidth > allowedWidth) {
+          linesInParagraph++;
+          currentLineWidth = wordWidth;
+        } else {
+          currentLineWidth += spaceWidth + wordWidth;
+        }
+      }
+    }
+
+    totalHeight += ((float)linesInParagraph * verticalLineStep);
+
+    // Append a half-step gap padding between paragraphs if we aren't handling
+    // the last element block
+    if (p < totalParagraphs - 1) {
+      totalHeight += (verticalLineStep * 0.5f);
+    }
+  }
+
+  return totalHeight;
+  // return 650.0f; // temporary
+}
+
+#include <cmath>
+// This is the function that is fully Ai.
+// This is just for fun.
+// Status : Has not been tested.
+// HIGH-PERFORMANCE ENGINE ROUTINE: Zero allocations, direct pointer stepping
+inline float ComputeDynamicTextHeight(Font font, const char *paragraphs[],
+                                      int totalParagraphs, float allowedWidth,
+                                      float fontSize, float lineSpacingFactor) {
+  if (totalParagraphs <= 0 || allowedWidth <= 0)
+    return 0.0f;
+
+  float totalHeight = 0.0f;
+
+  // Extract base font scaling values directly
+  float baseLineHeight = (font.baseSize > 0) ? (float)font.baseSize : fontSize;
+  if (fontSize != baseLineHeight) {
+    baseLineHeight = fontSize;
+  }
+  float verticalLineStep = baseLineHeight * lineSpacingFactor;
+
+  // Direct cache register lookup for space spacing parameters
+  float spaceWidth = MeasureTextEx(font, " ", fontSize, 1.0f).x;
+
+  for (int p = 0; p < totalParagraphs; ++p) {
+    const char *run = paragraphs[p];
+    if (!run || *run == '\0') {
+      totalHeight += verticalLineStep;
+      continue;
+    }
+
+    float currentLineWidth = 0.0f;
+    int linesInParagraph = 1;
+
+    // Pointer-scanning tokenizer loop
+    while (*run != '\0') {
+      // 1. Skip spaces and clean up embedded newlines
+      while (*run == ' ' || *run == '\n') {
+        run++;
+      }
+      if (*run == '\0')
+        break;
+
+      // 2. Identify word lengths via pointer subtraction
+      const char *wordStart = run;
+      while (*run != '\0' && *run != ' ' && *run != '\n') {
+        run++;
+      }
+      int wordLen = static_cast<int>(run - wordStart);
+
+      // 3. Fast Zero-Copy Stack Slicing
+      // We isolate the word directly out of memory without modifying the root
+      // string
+      char wordScratchpad[128];
+      int copyLen = (wordLen < 127) ? wordLen : 127;
+
+      // Unrolled hardware layout memory block copy
+      for (int i = 0; i < copyLen; ++i) {
+        wordScratchpad[i] = wordStart[i];
+      }
+      wordScratchpad[copyLen] = '\0';
+
+      // Measure word boundary width using Raylib metrics
+      float wordWidth = MeasureTextEx(font, wordScratchpad, fontSize, 1.0f).x;
+
+      if (currentLineWidth == 0.0f) {
+        currentLineWidth = wordWidth;
+      } else {
+        // If appending this layout block passes the screen box edge, break down
+        // a row
+        if (currentLineWidth + spaceWidth + wordWidth > allowedWidth) {
+          linesInParagraph++;
+          currentLineWidth = wordWidth;
+        } else {
+          currentLineWidth += spaceWidth + wordWidth;
+        }
+      }
+    }
+
+    totalHeight += (static_cast<float>(linesInParagraph) * verticalLineStep);
+
+    // Append section spacing transitions
+    if (p < totalParagraphs - 1) {
+      totalHeight += (verticalLineStep * 0.5f);
+    }
+  }
+
+  return totalHeight;
+}
+} // namespace Vendor::clay
+
 // ChessMenu for `menu.h`, specifically the options
 namespace ChessMenu::logic {
 inline void UpdateMenuElement(
@@ -696,7 +1111,94 @@ inline void UpdateMenuElement(
 
 inline void
 UpdateMenuHeader(int width, int height, Vector2 mouse, int &currentScreenMode,
-                 enum ChessUI::CHESSY_UI_MENU_MODE &currentMenuMode) {}
+                 enum ChessUI::CHESSY_UI_MENU_MODE &currentMenuMode) {
+  // Initialize shit.
+  static bool hasClicked[5] = {
+      false, false, false, false,
+      false}; // This is for when we want to know if the user has
+              // clicked the header element say twice useful for
+              // making double click == previous assignments.
+              // Since you can click to navigate, double click ==
+              // teleport to home page
+              // BTW, i don't wanna include shit and make the
+              // binary larger, so C time.
+
+  // Mirror the exact dimensions used in DrawStartMenu
+
+  Rectangle navAbout = {35.0f, 28.0f, 65.0f, 30.0f};
+  Rectangle navHelp = {145.0f, 28.0f, 55.0f, 30.0f};
+  Rectangle navNews = {235.0f, 28.0f, 55.0f, 30.0f};
+  Rectangle navOpeningLib = {325.0f, 28.0f, 175.0f, 30.0f};
+  Rectangle navImpExport = {535.0f, 28.0f, 125.0f, 30.0f};
+
+  if (CheckCollisionPointRec(mouse, navAbout)) {
+    if (!hasClicked[0])
+      std::cout
+          << "[ROUTE] : MENU -- User triggered switch to the `About` page "
+             "in the header -> Transitioning to `About` page menu...\n";
+    else
+      std::cout << "[ROUTE] : MENU -- User triggered switch to `Home` page via "
+                   "double click in the header -> Tranisitioning to `Home` "
+                   "page menu...\n";
+
+    currentScreenMode = ChessMode::CHESSY_MODE_NORMAL;
+
+    if (!hasClicked[0])
+      currentMenuMode = ChessUI::CHESSY_MODE_ABOUT;
+    else
+      currentMenuMode = ChessUI::CHESSY_MODE_HOME;
+    if (!hasClicked[0])
+      hasClicked[0] =
+          true; // 0 is for this. yes i know. this is dangerous.
+                // will implement a class like `Colorscheme::operator[]` method
+                // to handle this safely (dictionary lookup)
+    else
+      hasClicked[0] = false;
+
+    // This will be immediately true and thus...
+    // THE RESET
+    if (hasClicked[0])
+      for (SmolInt::nibble_t i = 0; i < 3; ++i)
+        hasClicked[i + 1] = false;
+  }
+  if (CheckCollisionPointRec(mouse, navHelp)) {
+    if (!hasClicked[1])
+      std::cout << "[ROUTE] : MENU -- User triggered switch to the `Help` page "
+                   "in the header -> Transitioning to `Help` page menu...\n";
+    else
+      std::cout << "[ROUTE] : MENU -- User triggered switch to `Home` page via "
+                   "double click in the header -> Tranisitioning to `Home` "
+                   "page menu...\n";
+
+    currentScreenMode = ChessMode::CHESSY_MODE_NORMAL;
+
+    if (!hasClicked[1])
+      currentMenuMode = ChessUI::CHESSY_MODE_HELP;
+    else
+      currentMenuMode = ChessUI::CHESSY_MODE_HOME;
+    if (!hasClicked[1])
+      hasClicked[1] =
+          true; // 1 is for this. yes i know. this is dangerous.
+                // will implement a class like `Colorscheme::operator[]` method
+                // to handle this safely (dictionary lookup)
+    else
+      hasClicked[1] = false;
+
+    // This will be immediately true and thus...
+    // THE RESET
+    if (hasClicked[1]) {
+      hasClicked[0] = false; // previous
+      for (SmolInt::nibble_t i = 0; i < 2; ++i)
+        hasClicked[i + 2] = false;
+    }
+  }
+  if (CheckCollisionPointRec(mouse, navNews)) {
+  }
+  if (CheckCollisionPointRec(mouse, navOpeningLib)) {
+  }
+  if (CheckCollisionPointRec(mouse, navImpExport)) {
+  }
+}
 } // namespace ChessMenu::logic
 
 #endif
