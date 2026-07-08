@@ -20,6 +20,9 @@
 #ifndef SMOL_INT_LIBRARY_HEADER_CPP
 #define SMOL_INT_LIBRARY_HEADER_CPP
 
+#define SMOL_INT_LIBRARY__CAST(n)                                              \
+  (*(unsigned char *)&(n)) // casts a smol int type to an int.
+
 #include <cstdint>
 
 namespace SmolInt {

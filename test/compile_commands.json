@@ -1,0 +1,7 @@
+[
+  {
+    "file": "can_do_succ_endecb.c",
+    "directory": "/home/yyarch/projects/chessy/test/",
+    "command": "clang -O3 -I../include/ can_do_succ_endecb.c ../include/backend/file_io.c ../include/backend/endec_board.c ../include/backend/smolInt.c -o can_do_succ_endecb"
+  }
+]

@@ -35,6 +35,9 @@
 #define SMOL_INT_LIBRARY__CHUNK_INT_T__MAXSIZE SMOL_INT_LIBRARY__CHUNKT_MAXSIZE
 #define SMOL_INT_LIBRARY__CHUNK_INT_T__MAX SMOL_INT_LIBRARY__CHUNKT_MAXSIZE
 
+#define SMOL_INT_LIBRARY__CAST(n)                                              \
+  (*(unsigned char *)&(n)) // casts a smol int type to an int.
+
 #ifdef __cplusplus
 extern "C" {
 #endif

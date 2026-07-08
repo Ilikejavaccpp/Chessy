@@ -244,7 +244,7 @@ void decodeFen(const char *file_path, int8_t **out_fen);
  *
  * Parameters and their explanations
  *  `file_path`    -> the destination path of the file to be encoded in
- *  `engine_lines` -> the engine lines (usually top 3 or top 5<-CHUNKY)
+ *  `engine_lines` -> the engine lines (usually top 3 or top 5<-CHUNKY) in UCI
  *  `depth`        -> maximum depth for stockfish engine evaluation lines
  *  `eval_score`   -> the score evaluated in centipawns
  */
@@ -267,15 +267,27 @@ void encodeEngineLines(const char *file_path, int8_t *engine_lines,
  *
  * Parameters and their explanations
  *  `file_path`    -> the source/origin path of the file to be decoded from
- *  `engine_lines` -> the engine lines (usually top 3 or top 5<-CHUNKY) (so
- * please use `uint8_t` as the index & size (ln. count))
- *  `depth`        -> maximum depth for stockfish engine evaluation lines
- * (again, pls use `uint8_t`)
- *  `eval_score`   -> the score evaluated in
- * centipawns
+ *  `engine_lines` -> the engine lines (usually top 3 or top 5<-CHUNKY) in UCI
+ * (so please use `uint8_t` as the index & size (ln. count))
+ *  `depth`        ->
+ * maximum depth for stockfish engine evaluation lines (again, pls use
+ * `uint8_t`)
+ *  `eval_scores`   -> the scores evaluated in centipawns
  */
-void decodeEngineLines(const char *file_path, int8_t **out_lines,
-                       uint8_t *depth, uint16_t eval_score);
+void decodeEngineLines(const char *file_path, int8_t **__restrict out_lines,
+                       uint8_t *__restrict depth,
+                       uint16_t **__restrict eval_scores);
+
+/* For converting to UCI (stockfish/engine language) or to PGN (normal human
+ * language) */
+
+/* ... Lorem ipsum . Hello world DUMMY */
+void convert_pgnToUCI(int8_t *__restrict *out_uci,
+                      int8_t *__restrict pgn_lines);
+
+/* ... Lorem ipsum . Hello world DUMMY */
+void convert_uciToPGN(int8_t *__restrict *out_pgn,
+                      int8_t *__restrict uci_lines);
 
 __END_DECLS
 

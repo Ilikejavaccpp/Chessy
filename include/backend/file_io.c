@@ -68,7 +68,7 @@ void testBinary(FILE **restrict __test_file, uint8_t *out_flag) {
     return; // exit
   }
 
-  out_flag = 0;
+  *out_flag = 0;
   return;
 }
 

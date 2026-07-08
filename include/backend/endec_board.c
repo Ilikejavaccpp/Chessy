@@ -6,6 +6,7 @@
 
 #include "endec_board.h"
 #include "file_io.h"
+#include "macros.h" // handy dandy
 
 #include <malloc.h>
 #include <string.h>
@@ -71,7 +72,7 @@ typedef struct MiniStringBlock MiniString; // unnecessary bloat
 
 /* Helpers */
 
-// A helper structure to measure exactly what your file driver is writing
+// A helper structure to measure exactly what the file driver is writing
 long get_file_size(const char *filename) {
   FILE *f = fopen(filename, "rb");
   if (!f)
@@ -187,32 +188,32 @@ void convert_boardToFen(char **__restrict out_fen_string,
       if (val == 0)
         ++count_empty;
       else {
-        *out_fen_string[i++] =
-            '0' + count_empty; // the count of empty expressed in string via
-                               // character / integer ASCII maths
-
-        count_empty =
-            0; // reset since we hit the piece (NOTE: we use postfix here for
-               // the old return, aka background silent changing)
+        if (count_empty > 0) {
+          (*out_fen_string)[i++] =
+              '0' + count_empty; // the count of empty expressed in string via
+                                 // character / integer ASCII maths
+          count_empty =
+              0; // reset since we hit the piece (NOTE: we use postfix here for
+                 // the old return, aka background silent changing)
+        }
+        // Translate the integer into a fen literal via the lookup dictionary
+        // (table)
+        (*out_fen_string)[i++] = intToFen_lookup_table[val];
       }
-
-      // Translate the integer into a fen literal via the lookup dictionary
-      // (table)
-      *out_fen_string[i++] = intToFen_lookup_table[val];
     }
 
     // Flush out the remaining spaces at the end of the row (`r`)
     if (count_empty > 0)
-      *out_fen_string[i++] = '0' + count_empty;
+      (*out_fen_string)[i++] = '0' + count_empty;
 
     // Append a slash `/` delimiter to the end of every row (except the very
     // last, i.e array indice `7` or rank `1`)
-    if (i < 7)
-      *out_fen_string[i++] = '/';
+    if (r < 7)
+      (*out_fen_string)[i++] = '/';
   }
 
   // Properly append a null terminator, to safely terminate the string
-  *out_fen_string[i] = '\0';
+  (*out_fen_string)[i] = '\0';
 }
 
 void convert_fenToBoard(char *__restrict fen_string,
@@ -226,7 +227,7 @@ void convert_fenToBoard(char *__restrict fen_string,
 
   // Clear (wipe) the board out so that we don't have to manually append stuff
   // and instead modify (increment) values.
-  memset(out_board_64, 0, 64);
+  memset(*out_board_64, 0, 64);
 
   // Scan the board until we hit a space or an EOF (the null terminator)
   while (fen_string[i] != '\0' && fen_string[i] != ' ') {
@@ -237,7 +238,7 @@ void convert_fenToBoard(char *__restrict fen_string,
     if (token == '/') {
       r++;   // increment the row (i.e. move down)
       c = 0; // reset the column (in chess what we call a 'file')
-    } else if (token >= '1' || token <= '8')
+    } else if (token >= '1' && token <= '8')
       c += (token - '0'); // conversion to an integer
                           // to skip the blanks, looking for a full
                           // for the piece type with color (`black / WHITE`)
@@ -255,7 +256,7 @@ void convert_fenToBoard(char *__restrict fen_string,
       // write to the board if there exists a piece
       // with some constraints for safety first.
       if (r >= 0 && r < 8 && c >= 0 && c < 8)
-        *out_board_64[r * 8 + c] = id;
+        (*out_board_64)[r * 8 + c] = id;
 
       // Move on to the next
       ++c;
@@ -311,7 +312,7 @@ void encodeFen(const char *file_path, int8_t *fen_string) {
       .count = 1,
       .__char = (int8_t)('\0' ^ CHESSY_BACKEND__SMALL_BATCH_VALUE_MAX)};
   fwrite(&delim, sizeof(MiniString), 1, o_file);
-  fwrite(&type_tag, sizeof(MiniString), 1, o_file);
+  fwrite(&term_tag, sizeof(MiniString), 1, o_file);
 
   // close the file
   closeBinary(&o_file);
@@ -339,6 +340,9 @@ void decodeFen(const char *file_path, int8_t **out_fen) {
 
   uint8_t vbi = 0; // since the total number of characters (max) is 256
                    // (DEFAULT, i think 512 is a bit too large)
+                   // will (in the future) make some boilerplate via defining an
+                   // almost identical clone that will just change the types of
+                   // the indices
 
   _Bool verified = false; // make sure if we are at the right block
 
@@ -414,9 +418,9 @@ void decodeFen(const char *file_path, int8_t **out_fen) {
             'f' // This is the next entry check (if it is `f`)
 
     ) { // 128 is the delimeter special code, again see
-      // more via the instructions provided above this
-      // comment. also we put a restraint so that we
-      // don't have a read overflow (segfault)
+        // more via the instructions provided above this
+        // comment. also we put a restraint so that we
+        // don't have a read overflow (segfault)
       verified = true;
       i += 2; // skip the delimiter indentifier entry and go to the actual fen
               // data.
@@ -502,11 +506,58 @@ void encodeEngineLines(const char *file_path, int8_t *engine_lines,
   // First, configure the metadata
   ChessEngineEval mdata = {
       .validator = CHESSY_BACKEND__MASKOB(128),
-      .eval_sc = 0,
+      .eval_sc = (uint16_t)eval_score,
       .depth = depth,
   };
 
   // Second, write the payload with the configured metadata
+  fwrite(&mdata, sizeof(ChessEngineEval), 1,
+         o_file); // first write the metadata
+                  // i.e. the block header indicator
+
+  uint16_t i = 0;
+  while (engine_lines[i] != '\0') {
+    if (engine_lines[i] ==
+        '\n') /* If we hit a newline, write it as a standalone uncompressed
+                 newline character (<CR> / <Enter>) for readability. Also makes
+                 universal only encode ASCII clear.*/
+    {
+      MiniString end_line = {
+          .count = 1,
+          .__char = (int8_t)'\n',
+      }; /* We named it as so since let's be real, END of the engine LINE.*/
+      fwrite(&end_line, sizeof(MiniString), 1, o_file);
+      i++;      /* Skip to the next */
+      continue; /* Skip for this (don't encode it or do operations to it) */
+    }
+
+    /* Encode normal characters that are not newlines and
+     * are basically uci. */
+    MiniString block_char = {
+        .count = 1,
+        .__char = engine_lines[i],
+    };
+
+    while (
+        engine_lines[i + 1] != '\0' && // While it is not the EOF of the string
+        engine_lines[i] ==
+            engine_lines[i + 1] && // same for the next (skipping and
+                                   // effectiveness) #better comments
+        block_char.count < 255 &&  // redundant but sure
+        engine_lines[i + 1] !=
+            '\n' // make sure this is the current line and not the next, don't
+                 // multiply it (i.e.) the count
+    ) {
+      block_char.count++;
+      i++;
+    }
+
+    /* Write the normal obfuscated string bit (MiniString) to the file */
+    /* Via masking -> writing -> updating */
+    block_char.__char = (int8_t)CHESSY_BACKEND__MASKOB(block_char.__char);
+    fwrite(&block_char, sizeof(MiniString), 1, o_file);
+    i++;
+  }
 
   /* Close off with the terminator signature */
   // signature ending tag delimiter marker
@@ -516,9 +567,270 @@ void encodeEngineLines(const char *file_path, int8_t *engine_lines,
       .count = 1,
       .__char = (int8_t)('\0' ^ CHESSY_BACKEND__SMALL_BATCH_VALUE_MAX)};
   fwrite(&delim, sizeof(MiniString), 1, o_file);
-  fwrite(&type_tag, sizeof(MiniString), 1, o_file);
+  fwrite(&term_tag, sizeof(MiniString), 1, o_file);
 
   /* Cleanup */
   // close the file
   closeBinary(&o_file);
+}
+
+void decodeEngineLines(const char *file_path, int8_t **restrict out_lines,
+                       uint8_t *restrict depth,
+                       uint16_t **restrict eval_scores) {
+  if (!file_path || !out_lines || !depth || !eval_scores)
+    return; // safety mechanism
+
+  FILE *i_file = NULL;
+  uint8_t error;
+
+  readBinary(&i_file, file_path);
+  testBinary(&i_file, &error);
+
+  /* The first `if` is for people who are new to this codebase/forgot some stuff
+   * about the functions here */
+  if (!i_file)
+    return; // there is no such thing
+  if (error != 0)
+    return; // safely exit
+
+  char vbuf[CHESSY_BACKEND_C_CORE_FILEIO_FLAG__VBATCH_MAX * 2] = {0};
+  uint16_t vbi =
+      0; // since the total number of characters (max) is 256*2 == 512
+  bool verified = false;
+
+  fseek(i_file, 0, SEEK_END);
+  size_t i_fsz = ftell(i_file);
+  fseek(i_file, 0, SEEK_SET);
+
+  /* Allocate the file on the heap and get the number of bytes read. */
+  uint8_t *i_fbuf = (uint8_t *)malloc(i_fsz);
+  if (!i_fbuf) {
+    *out_lines = NULL; // now, non-optional
+    closeBinary(&i_file);
+    return;
+  }
+
+  size_t __r_bytes =
+      fread(i_fbuf, 1, i_fsz, i_file); // the count of read bytes from the
+                                       // allocated file buffer (`i_fbuf`)
+
+  closeBinary(&i_file); // safely close the file
+
+  /* Map out our memory pointers and do calculation */
+  MiniString *blocks =
+      (MiniString *)i_fbuf; // map over the allocated file array for the current
+                            // pointer to point to the first index
+
+  size_t count_blks =
+      __r_bytes / sizeof(MiniString); // the count of the blocks.
+
+  /* Begin calculation..
+   * Loop through the contents then find the delimiter sequence */
+  for (size_t _i = 0; _i < count_blks; ++_i) {
+    int8_t __char_entry =
+        blocks[_i].__char ^
+        CHESSY_BACKEND__SMALL_BATCH_VALUE_MAX; // de-obfuscate it via our
+                                               // signature unmask
+
+    /* Scan for the delimeter then, check if it is the `e`, aka flag no. 2.
+     * See more about delimeter flags and weird stuff at the topmost
+     * explanatory boilerplate comment.
+     *
+     * NOTE: if you are in Nvim... type `<Esc>gg` (to go up
+     * and find it) or type `<Esc>/EXPLANATION FOR ENC<Enter>` then type `N`*/
+    if ((uint8_t)__char_entry == 128 && (_i + 1) < count_blks &&
+        (blocks[_i + 1].__char ^ CHESSY_BACKEND__SMALL_BATCH_VALUE_MAX) ==
+            'e' // This is the next entry check (if it is `e`)
+
+    ) { // 128 is the delimeter special code, again see
+        // more via the instructions provided above this
+        // comment. also we put a restraint so that we
+        // don't have a read overflow (segfault)
+
+      verified = true;
+      uint8_t line_no = 0; // For various eval scores and move sequences
+
+      ChessEngineEvalFileData *meta =
+          (ChessEngineEval
+               *)&blocks[_i + 2]; // extract shit right after the two signifiers
+      *depth = meta->depth;       // assign
+
+      // BUG, REDUNDANT
+      // size_t bytes_to_skip =
+      //     (2 * sizeof(MiniString)) + sizeof(struct ChessEngineEvalMetaData);
+      uint8_t *payload_addr =
+          (uint8_t *)&blocks[_i + 2] +
+          sizeof(ChessEngineEval); // if the compiler is a karen
+      size_t i = (MiniString *)payload_addr - blocks; // elements to skip
+      // DANGEROUS
+      // i += 2 + sizeof(ChessEngineEvalFileData) /
+      //              sizeof(MiniString); // skip the delimiter indentifier
+      //              entry
+      //                                  // and go to the actual line(s) data.
+
+      /* Parse the payload and do actions to it */
+      while (i < count_blks) {
+        bool isTag = false;
+
+        /* Look for the trailer terminating delimiter tag; i.e
+         * `128` in char + `'\0'`.
+         * See more about delimeter flags and weird stuff at the topmost
+         * explanatory boilerplate comment.
+         */
+        // DEPECRATED, Explanations here but the inner logic (math) is broken
+        // ;-;
+        // if ((uint8_t)__char_data == 128 && (i + 1) < count_blks) {
+        //   if ((blocks[i + 1].__char ^ CHESSY_BACKEND__SMALL_BATCH_VALUE_MAX)
+        //   ==
+        //       '\0' // This is the next entry check (if it is `\0`)
+        //
+        //   )
+        //     break; // we have reached the end of the engine lines. time to
+        //     exit
+        //   elif ((blocks[i + 1].__char ^
+        //          CHESSY_BACKEND__SMALL_BATCH_VALUE_MAX) == 'E') {
+        //     // (*eval_scores)[line_no] = (uint16_t)*(uint16_t *)(&blocks[i +
+        //     // 2]);
+        //     if (*eval_scores) {
+        //       (*eval_scores)[line_no] = *((uint16_t *restrict)&blocks[i +
+        //       2]);
+        //     }
+        //     i += 3; // because of tag shit,
+        //             // 1 == delimeter
+        //             // 1 == the id (i.e 'E')
+        //             // 1 == the score
+        //     continue;
+        //   }
+        // }
+        // Force the check to ONLY trigger if the block is a single-byte
+        // structural flag
+        // FIX, CHANGELOG --> don't use the __char_data
+        // as it may retain garbage memory (easy to forget)
+        if ((uint8_t)blocks[i].__char == CHESSY_BACKEND__MASKOB(128) &&
+            blocks[i].count == 1 && (i + 1) < count_blks) {
+          int8_t next_tag =
+              blocks[i + 1].__char ^ CHESSY_BACKEND__SMALL_BATCH_VALUE_MAX;
+
+          if (next_tag == '\0') {
+            i += 2; // make sure both are cut off.
+                    // X ->we increment `i` at the bottom so no need for an
+                    // extra 1. X ->also, readability issues & debugging
+                    // nightmare
+            break;  // reached end of engine lines, exit loop cleanly
+          }
+          elif (next_tag == 'E') {
+            isTag = true;
+            if (*eval_scores) {
+              // REDUNDANT, BUG, DANGEROUS
+              // (*eval_scores)[line_no] = *(
+              //     (uint16_t *restrict)&blocks[i + 2]); // simple casting
+              //                                          // that doesn't work
+              //                                          // (truncates `e` in
+              //                                          the
+              //                                          // test for some
+              //                                          reason)
+              uint16_t eval_score_tempv;
+              memcpy(&eval_score_tempv, &blocks[i + 2], sizeof(uint16_t));
+              if (line_no > 0 && (line_no - 1) < 3) {
+                (*eval_scores)[line_no - 1] = eval_score_tempv;
+              } else if (line_no == 0) {
+                (*eval_scores)[0] = eval_score_tempv;
+              }
+            }
+
+            i += 3;   // skip the 3— wow an em dash
+                      // [DELIMETER 128] [FLAG 'E'] [NEWLINE]
+            continue; // skip this
+          }
+          // else goto dec_payload_for_fix;
+        }
+        if (!isTag) {
+          // dec_payload_for_fix:;
+
+          int8_t __char_data;
+          if (blocks[i].__char == '\n') {
+            __char_data = blocks[i].__char;
+            ++line_no;
+          } else
+            __char_data = CHESSY_BACKEND__UNMASKOB(
+                blocks[i].__char); // de-obfuscate the data
+                                   // via our signature
+                                   // unmask (again) :sigh:
+          fprintf(stderr,
+                  "[DEBUG] i=%zu, raw=%02X, decoded='%c' (%d), line=%d\n", i,
+                  (uint8_t)blocks[i].__char, __char_data, __char_data, line_no);
+          /* Unpack them */
+          for (uint8_t j = 0; j < blocks[i].count; ++j)
+            if (vbi < (CHESSY_BACKEND_C_CORE_FILEIO_FLAG__VBATCH_MAX * 2) -
+                          1 // if the virtual buffer index is less than
+                            // the virtual buffer's size (512), it is
+                            // decremented exactly because the index is signed
+                            // (starts from 0) Note here, `decremented` in this
+                            // comment means `const x - 1`
+                            //
+                            // NOTE: this was the FIXME bug.
+            )
+              vbuf[vbi++] = __char_data;
+          i++;
+        }
+      }
+      break; // succesfully finished extracting the target engine lines
+    }
+  }
+
+  /* Cleanup: free the leftover remnants, we don't want memory leaks and garbage
+   * memory and also
+   * Assignment: make sure that we modify the parameter (arg) passed, i.e the
+   * fen string*/
+  closeVBinary((void **)&i_fbuf); // same as `free(i_buf);`
+  if (verified && vbi > 0) {
+    *out_lines = malloc(vbi + 1);
+    if (*out_lines) {
+      memcpy(*out_lines, vbuf, vbi);
+      (*out_lines)[vbi] = '\0';
+    }
+  } else
+    *out_lines = NULL;
+}
+
+void convert_pgnToUCI(int8_t *restrict *out_uci, int8_t *restrict pgn_lines) {
+  if (!out_uci || !pgn_lines)
+    return; // safety mechanism
+
+  /* Begin */
+  uint16_t i =
+      0; // index for characters
+         // UCI lines (engine lines) are like at most (for any sane person)
+         // 256 (vbatch) * 2 (double safety + padding) == 512 (_ > 5*5*16)
+
+  /* NOTE (TODO)
+   * LOGIC:
+   *
+   * simply start out with a pgn line as
+   * 1. e4 e5 2. Nf3 .. \n
+   * 1. d4 d5 2. c4 ..
+   * ..
+   *
+   * here, if we hit a newline character.. then append it, else for
+   * every other sequence (and space), track the initials then finals..
+   *
+   * so we need a board variable, know the board and map shit like this
+   * 1. X .. -> X piece is white, find its coordinates.. (board_t, board_f ->
+   * *T*hen (before) *F*inal)
+   * 1. .. X -> X piece is black, same function.
+   *
+   *  NOTE: remove the move indicator or store it in something (maybe a global
+   * inline via getter/setters)
+   * */
+
+  (*out_uci)[i] = '\0'; // properly terminate it
+}
+
+void convert_uciToPGN(int8_t *__restrict *out_pgn,
+                      int8_t *__restrict uci_lines) {
+  if (!out_pgn || !uci_lines)
+    return; // safety mechanism
+
+  // temporary, use almost the same logic as before but reverse functional steps
+  return;
 }
