@@ -5,14 +5,15 @@
 // `include/backend/file_io.(h/c)`) but with some includes to fasten up some
 // stuff. NOTE: the functions are now included.
 
-// FIXME's
+// --F-I-X-M-E-'s [DONE]
 // - truncation of the first character of variable `uci_positions` index 21
-// (actual C index `uci_positions[20]`)
+// (actual C index `uci_positions[20]`), was because of wrong boundary limiter
 //
 // NOTE:
 // - the truncation happens with ANY character not just an `e`
 // May be because of poor writing (encoding) and/or decoding (rm'ing the
-// test bin file auto generated doesn't work, HELP ME)
+// test bin file auto generated doesn't work, HELP ME), it was because
+// of my poor eye. NO NEED NOW
 
 // #include "backend/macros.h"
 

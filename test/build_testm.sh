@@ -1,9 +1,9 @@
 #!/bin/bash
 
-C_TEST_SF=can_do_succ_endecb.c      # C source file (test)
-C_TEST_OF=can_do_succ_endecb        # C output binary file (test) 
+C_TEST_SF=can_do_succ_convc.c      # C source file (test)
+C_TEST_OF=can_do_succ_concv        # C output binary file (test) 
 C_TEST_OBF=hardware_engln_board.bin # C object file (test) 
-
+C_TEST_FLAG__DUMP_BIN=false
 
 # Optional
 clear
@@ -18,4 +18,6 @@ clang -I../include $C_TEST_SF ../include/backend/file_io.c ../include/backend/en
 ./$C_TEST_OF
 
 # HEXDUMP for analysis
-hexdump $C_TEST_OBF
+if ($C_TEST_FLAG__DUMP_BIN == true) then
+  hexdump $C_TEST_OBF
+fi

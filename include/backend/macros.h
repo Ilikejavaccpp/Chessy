@@ -1,6 +1,7 @@
-#ifndef CHESSY_BACKEND_MACROS
-#ifndef CHESSY_BACKEND_MACROS_H
-#ifndef __MACROS__H
+#ifndef CHESSY_BACKEND_MACROS // header included by many files (will/future) and
+                              // thus considered an object
+#ifndef CHESSY_BACKEND_MACROS_H // header tag file for backend
+#ifndef __MACROS__H // system wide nomenclaure (it is low-level basically)
 
 #define __MACROS__H
 
@@ -28,6 +29,8 @@
 #ifdef MACRO__FLAG_USE_ALL
 #define MACRO__FLAG_USE_EWALL
 #define MACRO__FLAG_USE_EXPERIMENTAL
+#define MACRO__FLAG_USE_LOG
+#define MACRO__FLAG_USE_TRACE
 #endif
 
 __BEGIN_DECLS
@@ -109,7 +112,7 @@ _Static_assert(
 
 // go-style
 #define info_log(fmt, ...)                                                     \
-  fprintf(_LOG_OUT_ASMF, "[INFO] : ", fmt "\n",                                \
+  fprintf(_LOG_OUT_ASMF, "[INFO] : " fmt "\n",                                 \
           ##__VA_ARGS__) // for non-GCC or non-Clang compilers,
                          // also makes it user friendly
 #define LOG_MSG(fmt, ...)                                                      \

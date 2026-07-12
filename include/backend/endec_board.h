@@ -30,6 +30,31 @@ __BEGIN_DECLS
 #include <stdint.h>
 #endif
 
+/* Flags categorized as encryptography (and conversion too) */
+#define CHESSY_BACKEND__MODE_NL_WS "w" // With Space
+#define CHESSY_BACKEND__MODE_NL_NS "s" // (without) No Space
+
+// for ease of use
+#ifndef CHESSY_BACKEND_FLAG__NO_EASE_OF_USE__PGN_NOT
+#define CHESSY_BACKEND__MODE_PGN_NOTATION_OLD "o"
+
+// NOTE: these two are the same.. Don't change them
+#define CHESSY_BACKEND__MODE_PGN_NOTATION_NEW                                  \
+  "n" // the default, you really can't change the functions without
+      // recompilation
+#define CHESSY_BACKEND__MODE_PGN_NOTATION_NML                                  \
+  "n" // the default, you really can't change the functions without
+      // recompilation
+
+#define CHESSY_BACKEND__MODE_PGN_NOTATION_USECAPTURE "x"
+#define CHESSY_BACKEND__MODE_PGN_NOTATION_USEX                                 \
+  CHESSY_BACKEND__MODE_PGN_NOTATION_USECAPTURE
+#define CHESSY_BACKEND__MODE_PGN_NOTATION_USECOVER "c"
+
+#define CHESSY_BACKEND__DEFAULT_MODE_PGN "c" // tweakable
+#endif
+#define CHESSY_BACKEND__DEFAULT_MODE_NL "s" // tweakable
+
 /* Flags categorized as file i/o rather than encryptography (encrypt-decrypt) */
 
 // Change this to what byte size you like (standard practice is 2^n)
@@ -281,9 +306,43 @@ void decodeEngineLines(const char *file_path, int8_t **__restrict out_lines,
 /* For converting to UCI (stockfish/engine language) or to PGN (normal human
  * language) */
 
-/* ... Lorem ipsum . Hello world DUMMY */
-void convert_pgnToUCI(int8_t *__restrict *out_uci,
-                      int8_t *__restrict pgn_lines);
+/* Converts [PGN](https://google.com/search?q=pgn chess) (portable game
+ * notation) into UCI (stockfish/engine chess language). It has modes for
+ * specific pgn since we have
+ *  - Old school (harder, hardest to read)
+ *  - Normal variant 1 - no capture (easiest)
+ *  - Normal variant 2 - capture shown as an 'x' (hardest)
+ *
+ * Parameters and their explanations...
+ *  - `out_uci`   -> the variable to which the uci lines is to be outputted
+ *  - `pgn_lines` -> the input pgn lines (e.g. "1. e4 e5 2. Nf3 Nc6\n1. d4 d5 2.
+ * c4 \n") this can be formatted (into `[MOVE NO.] [MOVE W]/... ([MOVE B])\n`
+ *  - `mode`      -> the mode, it has three key values
+ *      1. "o" —— use old-school notation (e.g. output: "1. P-K4 P-K4 2. N-KB3
+ * N-QB3\n") this is harder
+ *      2. "x" —— use capture notation, for both old-school and normal notation
+ * (hint, it puts an x for capture)
+ *      3. "n" —— use normal / new school notation
+ *      4. "c" —— use the 'cover' capture where a piece moves (captures) to the
+ * to-be captured piece
+ *      5. "d" —— use the default (normally 'cover'/"c") which is explicitly
+ * defined (which means you can tweak it) as `#define
+ * CHESSY_BACKEND__DEFAULT_MODE_PGN "c"`
+ *
+ * ----------------------------------------------------------------------------+
+ * Note,                                                                       |
+ * it is recommended to *not* use `"..d"` since it is unpredictable, any       |
+ * configuration or call made by chessy's dev(s) using this is for user menu   |
+ * configuration. If you know how to use it properly (needs good logical       |
+ * thinking) then go ahead.                                                    |
+ *  The newline formatting can be changed via tweaking                         |
+ * ` CHESSY_BACKEND__DEFAULT_MODE_NL ` which is set to format (default, normal)|
+ * newline at the back without space ("s"). You can change it to with space    |
+ * ("w") or no space ("s")                                                     |
+ * ----------------------------------------------------------------------------+
+ * */
+void convert_pgnToUCI(int8_t *__restrict *out_uci, int8_t *__restrict pgn_lines,
+                      const char *mode);
 
 /* ... Lorem ipsum . Hello world DUMMY */
 void convert_uciToPGN(int8_t *__restrict *out_pgn,

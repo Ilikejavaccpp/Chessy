@@ -793,7 +793,8 @@ void decodeEngineLines(const char *file_path, int8_t **restrict out_lines,
     *out_lines = NULL;
 }
 
-void convert_pgnToUCI(int8_t *restrict *out_uci, int8_t *restrict pgn_lines) {
+void convert_pgnToUCI(int8_t *restrict *out_uci, int8_t *restrict pgn_lines,
+                      const char *mode) {
   if (!out_uci || !pgn_lines)
     return; // safety mechanism
 
@@ -821,13 +822,40 @@ void convert_pgnToUCI(int8_t *restrict *out_uci, int8_t *restrict pgn_lines) {
    *
    *  NOTE: remove the move indicator or store it in something (maybe a global
    * inline via getter/setters)
+   *
+   * first, calculate pgn average line min-max.
+   * So, basically in a pgn packet (without headers and shit) we have
+   * [MOVE_NUMBER] [MOVE_LOC WHITE (e.g. Nf3xd4, aka 6 (remove `x` we get 5,
+   * since nowadays people use `x` as in `e5xd4` use 6) == 1] [SPACE == 1]
+   * [MOVE_LOC BLACK == 6]
    * */
 
-  (*out_uci)[i] = '\0'; // properly terminate it
+  // mode = "ox";
+  // .
+  uint8_t __mode_size = strlen(mode);
+  uint16_t __pgn_ln_size_max = 0; // temporary
+  char __nl_mode = (char)*CHESSY_BACKEND__DEFAULT_MODE_NL;
+
+  /* Newline formatting payload configuration */
+  if (__nl_mode == (char)*CHESSY_BACKEND__MODE_NL_NS) // "s"
+  {
+    // .. do shit here
+  }
+  elif (__nl_mode == (char)*CHESSY_BACKEND__MODE_NL_WS) {
+    // .. do shit here
+  }
+
+  /* Specifies the mode -- oldschool, normal or default */
+  // if (findOption(&mode, )) {}
+  trace_log("STATE -- variable `mode` in function `convert_pgnToUCI()`.. "
+            "length=%d string=\"%s\"",
+            __mode_size, mode);
+
+  if (sizeof(*out_uci) / sizeof((*out_uci)[0]))
+    (*out_uci)[i] = '\0'; // properly terminate it
 }
 
-void convert_uciToPGN(int8_t *__restrict *out_pgn,
-                      int8_t *__restrict uci_lines) {
+void convert_uciToPGN(int8_t *restrict *out_pgn, int8_t *restrict uci_lines) {
   if (!out_pgn || !uci_lines)
     return; // safety mechanism
 
