@@ -7,6 +7,7 @@
 #include "endec_board.h"
 #include "file_io.h"
 #include "macros.h" // handy dandy
+#include "vendor.h" // handy dandy (VENDOR utilities for C)
 
 #include <malloc.h>
 #include <string.h>
@@ -793,10 +794,71 @@ void decodeEngineLines(const char *file_path, int8_t **restrict out_lines,
     *out_lines = NULL;
 }
 
+static inline void __reset_coord_brd(uint8_t *board_64) {
+  memset(board_64, 0, 64); // fresh wipe
+}
+
+static inline void __reset_coord_brd_startpos(uint8_t *board_64) {
+  if (!board_64)
+    return;
+  memcpy(board_64,
+         (uint8_t[64]){
+             4,  2, 3, 5,  6,  3, 2, 4, // black home row
+             1,  1, 1, 1,  1,  1, 1, 1, // black pawns
+
+             0,  0, 0, 0,  0,  0, 0, 0, // empty
+             0,  0, 0, 0,  0,  0, 0, 0, // empty
+
+             0,  0, 0, 0,  0,  0, 0, 0, // empty
+             0,  0, 0, 0,  0,  0, 0, 0, // empty
+
+             7,  7, 7, 7,  7,  7, 7, 7, // white pawns
+             10, 8, 9, 11, 12, 9, 8, 10 // white home row
+         },
+         64);
+}
+
+static inline void __reset_coord_brd_brd(uint8_t *board_64,
+                                         const uint8_t *custom_brd) {
+  if (board_64 && custom_brd)
+    memcpy(board_64, custom_brd, 64);
+}
+
+static inline bool __check_is_brd_empty(uint8_t *_Nonnull board_64) {
+  // A clean reference block of 64 zeroes
+  static const uint8_t empty_reference[64] = {0};
+
+  // memcmp returns 0 if all 64 bytes match the reference perfectly
+  return memcmp(board_64, empty_reference, 64) == 0;
+}
+
+/**/
+
+/* These don't work and thus pls add/remove modifications to them */
+
+/**/
+
 void convert_pgnToUCI(int8_t *restrict *out_uci, int8_t *restrict pgn_lines,
-                      const char *mode) {
+                      const char *mode, const uint8_t *start_pos_board) {
   if (!out_uci || !pgn_lines)
     return; // safety mechanism
+
+  /* Check if the pointer (to be output) has garbage memory and thus clear it */
+  if (*out_uci == NULL) {
+    *out_uci = malloc(CHESSY_BACKEND_C_CORE_FILEIO_FLAG__VBATCH_MAX * 2);
+    if (!*out_uci)
+      return; // safety mechanism
+  }
+
+  /* Check if start_pos_board was passed and/or if it was just an empty board */
+  // TODO: fix overwrite of const
+  if (start_pos_board && __check_is_brd_empty((uint8_t *)start_pos_board))
+    return; // no need to decode just a string
+  elif (!start_pos_board)
+      //
+      // memcpy((uint8_t *)start_pos_board,
+      //      CHESSY_BACKEND__DEFAULT_MODE_CHS_STARTPOS, 64);
+      __reset_coord_brd_startpos((uint8_t *)start_pos_board);
 
   /* Begin */
   uint16_t i =
@@ -835,30 +897,64 @@ void convert_pgnToUCI(int8_t *restrict *out_uci, int8_t *restrict pgn_lines,
   uint8_t __mode_size = strlen(mode);
   uint16_t __pgn_ln_size_max = 0; // temporary
   char __nl_mode = (char)*CHESSY_BACKEND__DEFAULT_MODE_NL;
+  int8_t **uci_stuff = {NULL}; // dummy
 
   /* Newline formatting payload configuration */
   if (__nl_mode == (char)*CHESSY_BACKEND__MODE_NL_NS) // "s"
   {
     // .. do shit here
+
+    // I am stuck pls help me
+    // strstr(pgn_lines, "\n"); /* find any newline occurence */
+
+    /* PIPELINE:
+     * Consider a move (white + black) as a packet for converting
+     * Then get the index for a newline.. (upto which via the packet magic)
+     * with that knowledge convert the others till that. append the newline to
+     * the out_uci then do shit.*/
   }
   elif (__nl_mode == (char)*CHESSY_BACKEND__MODE_NL_WS) {
     // .. do shit here
   }
 
   /* Specifies the mode -- oldschool, normal or default */
-  // if (findOption(&mode, )) {}
+  /* Since the default really is simply either of these, no need to
+   * write another obsolete junk code block */
+  if (strstr(mode, "o")) {
+    info_log("LEX -- parse:: gonna do oldschool parsing");
+  }
+  elif (strstr(
+      mode, CHESSY_BACKEND__MODE_PGN_NOTATION_NML)) { /* The main parsing action
+                                                         happens here */
+
+  }
+
   trace_log("STATE -- variable `mode` in function `convert_pgnToUCI()`.. "
             "length=%d string=\"%s\"",
             __mode_size, mode);
 
-  if (sizeof(*out_uci) / sizeof((*out_uci)[0]))
-    (*out_uci)[i] = '\0'; // properly terminate it
+  /* While loop for computation */
+  while (true) {
+    // do nothing
+    // this will eat resources but fck it
+    break; // no crash
+  }
+
+  /* Cleanup */
+  (*out_uci)[i] = '\0'; // properly terminate it
+  free(*out_uci);
 }
 
-void convert_uciToPGN(int8_t *restrict *out_pgn, int8_t *restrict uci_lines) {
+void convert_uciToPGN(int8_t *restrict *out_pgn, int8_t *restrict uci_lines,
+                      const uint8_t *start_pos_board) {
   if (!out_pgn || !uci_lines)
     return; // safety mechanism
 
   // temporary, use almost the same logic as before but reverse functional steps
   return;
 }
+
+/* include the experimentals too
+ * Here, it is the `ai` prefix meaning ya guessed it:
+ * AI generated (++some human/dev modifications) */
+#include "experimental/ai.endec_board.experimental.c"

@@ -146,7 +146,7 @@ __END_DECLS
 
 /* Disable flags (all) if permitted by the config */
 #ifdef MACRO__FLAG_DISABLE_ALL
-#undef C_INC_INCPP_END
+#undef C_INCPP_END
 #undef C_INCPP_START
 #undef __BEGIN_DECLS /* optional */
 #undef __END_DECLS   /* optional */

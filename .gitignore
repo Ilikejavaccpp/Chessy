@@ -12,3 +12,11 @@ obj/
 .idea/
 .DS_Store
 *.swp
+
+# Third-party engine binaries (100+ MiB each, over GitHub's 100 MiB hard limit).
+# Kept out of git on purpose: fetch them locally when needed.
+include/backend/apis/
+
+# Generated benchmark/test binaries and precompiled headers
+test/can_do_succ_*
+*.pch

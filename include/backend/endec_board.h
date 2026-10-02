@@ -54,6 +54,14 @@ __BEGIN_DECLS
 #define CHESSY_BACKEND__DEFAULT_MODE_PGN "c" // tweakable
 #endif
 #define CHESSY_BACKEND__DEFAULT_MODE_NL "s" // tweakable
+#define CHESSY_BACKEND__DEFAULT_MODE_CHS_STARTPOS                              \
+  (uint8_t[64]){4, 2, 3, 5, 6, 3, 2, 4, 1,  1, 1, 1,  1,  1, 1, 1,             \
+                                                                               \
+                0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0,  0,  0, 0, 0,             \
+                                                                               \
+                0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0,  0,  0, 0, 0,             \
+                                                                               \
+                7, 7, 7, 7, 7, 7, 7, 7, 10, 8, 9, 11, 12, 9, 8, 10}
 
 /* Flags categorized as file i/o rather than encryptography (encrypt-decrypt) */
 
@@ -64,9 +72,14 @@ __BEGIN_DECLS
   CHESSY_BACKEND_C_CORE_FILEIO_FLAG__VBATCH_MAX_SIZE // Change this to what byte
                                                      // size you like (standard
                                                      // practice is 2^n)
-#define CHESSY_BACKEND_FILEIO_FLAG__VBATCH_MAX_SIZE  // Change this to what byte
+#define CHESSY_BACKEND_FILEIO_FLAG__VBATCH_MAX_SIZE                            \
+  CHESSY_BACKEND_C_CORE_FILEIO_FLAG__VBATCH_MAX_SIZE // Change this to what byte
                                                      // size you like (standard
                                                      // practice is 2^n)
+#define CHESSY_BACKEND_FILEIO_FLAG__VBATCH_MAX                                 \
+  CHESSY_BACKEND_FILEIO_FLAG__VBATCH_MAX_SIZE // Change this to what byte
+                                              // size you like (standard
+                                              // practice is 2^n)
 
 /* A struct holding the move type..
  * This is so that i don't want fwd-impl to bite me.
@@ -342,11 +355,11 @@ void decodeEngineLines(const char *file_path, int8_t **__restrict out_lines,
  * ----------------------------------------------------------------------------+
  * */
 void convert_pgnToUCI(int8_t *__restrict *out_uci, int8_t *__restrict pgn_lines,
-                      const char *mode);
+                      const char *mode, const uint8_t *start_pos_board);
 
 /* ... Lorem ipsum . Hello world DUMMY */
-void convert_uciToPGN(int8_t *__restrict *out_pgn,
-                      int8_t *__restrict uci_lines);
+void convert_uciToPGN(int8_t *__restrict *out_pgn, int8_t *__restrict uci_lines,
+                      const uint8_t *start_pos_board);
 
 __END_DECLS
 
